@@ -1,0 +1,8 @@
+export type Role = 'admin' | 'request_manager' | 'approver' | 'requester';
+export type User = { id: string; email: string; name: string; role: Role; permissions: string[]; mustChangePassword: boolean };
+export type FieldType = 'text' | 'textarea' | 'email' | 'date' | 'time' | 'number' | 'select' | 'radio' | 'checkbox' | 'image' | 'pdf';
+export type FormField = { id: string; label: string; description: string; type: FieldType; required: boolean; options: string[]; validation: Record<string, string | number | string[]> };
+export type WorkflowStep = { id: string; name: string; instructions: string; approverRole: Exclude<Role, 'requester'>; approverUserId: string | null };
+export type RequestForm = { id: string; key: string; name: string; groupName: string; description: string; fields: FormField[]; workflowSteps: WorkflowStep[]; active: boolean };
+export type RequestEvent = { id: string; action: string; metadata: Record<string, unknown>; createdAt: string; actor?: Pick<User, 'id' | 'name'> };
+export type ServiceRequest = { id: string; referenceNumber: string; requesterId: string; formId: string; formSnapshot: RequestForm; responses: Record<string, unknown>; status: string; currentStep: number | null; assignedUserId: string | null; remarks: string | null; createdAt: string; updatedAt: string; requester?: Pick<User, 'id' | 'name' | 'email'>; assignedUser?: Pick<User, 'id' | 'name' | 'email'>; events?: RequestEvent[] };

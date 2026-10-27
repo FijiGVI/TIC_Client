@@ -1,0 +1,27 @@
+.loading :global(.page-header) > div {
+  display: grid;
+  width: min(520px, 75vw);
+  gap: 10px;
+}
+
+.skeleton {
+  display: block;
+  min-height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #eef1f4 25%, #f8f9fa 50%, #eef1f4 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.35s ease-in-out infinite;
+}
+
+.eyebrow { width: 105px; height: 12px; }
+.title { width: 280px; height: 38px; }
+.copy { width: 440px; max-width: 100%; height: 16px; }
+.label { width: 95px; height: 12px; }
+.number { width: 45px; height: 30px; }
+.heading { width: 150px; height: 19px; }
+.surface { overflow: hidden; }
+.row { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 32px; padding: 19px 20px; border-bottom: 1px solid var(--line); }
+.row .skeleton { height: 14px; }
+
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

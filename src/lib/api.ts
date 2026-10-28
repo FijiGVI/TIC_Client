@@ -1,4 +1,4 @@
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api').replace(/\/$/, '');
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
 let accessToken: string | null = null;
 export const setAccessToken = (token: string | null) => { accessToken = token; if (typeof window !== 'undefined') { if (token) sessionStorage.setItem('tic.accessToken', token); else sessionStorage.removeItem('tic.accessToken'); } };
 export const restoreAccessToken = () => { if (typeof window !== 'undefined') accessToken = sessionStorage.getItem('tic.accessToken'); return accessToken; };

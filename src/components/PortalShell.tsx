@@ -9,17 +9,27 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { api } from '@/lib/api';
 
 export function PortalShell({ children }: { children: ReactNode }) {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
   }, [loading, user, router]);
+
+  const changePassword = async () => {
+    setPasswordError('');
+    try { await api.post('/auth/change-password', { password }); setPassword(''); setPasswordOpen(false); await refreshUser(); }
+    catch (reason) { setPasswordError(reason instanceof Error ? reason.message : 'Unable to update password'); }
+  };
 
   if (loading || !user) {
     return (
@@ -65,10 +75,10 @@ export function PortalShell({ children }: { children: ReactNode }) {
         <div className="sidebar-user">
           <span>{user.name.slice(0, 1).toUpperCase()}</span>
           <div><strong>{user.name}</strong><small>{user.role.replace('_', ' ')}</small></div>
-          <button aria-label="Sign out" onClick={() => void logout()}><IconLogout size={19} /></button>
+          <button aria-label="Change password" title="Change password" onClick={() => setPasswordOpen(true)}>•••</button><button aria-label="Sign out" onClick={() => void logout()}><IconLogout size={19} /></button>
         </div>
       </aside>
-      <main className="portal-main">{children}</main>
+      <main className="portal-main">{children}</main>{(passwordOpen || user.mustChangePassword) && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="password-title"><h2 id="password-title">Change password</h2><p>{user.mustChangePassword ? 'Set a new password before continuing.' : 'Use at least 12 characters with uppercase, lowercase, and a number.'}</p>{passwordError && <div className="alert">{passwordError}</div>}<label>New password<input type="password" minLength={12} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><div className="modal-actions">{!user.mustChangePassword && <button className="secondary" onClick={() => setPasswordOpen(false)}>Cancel</button>}<button className="primary" disabled={password.length < 12} onClick={() => void changePassword()}>Update password</button></div></section></div>}
     </div>
   );
 }

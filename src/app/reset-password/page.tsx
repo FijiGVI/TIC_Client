@@ -1,0 +1,7 @@
+'use client';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useState, type FormEvent } from 'react';
+import { api } from '@/lib/api';
+function ResetForm() { const token = useSearchParams().get('token') || ''; const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [done, setDone] = useState(false); const submit = async (event: FormEvent) => { event.preventDefault(); setError(''); try { await api.post('/auth/reset-password', { token, password }); setDone(true); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to reset password'); } }; return <main className="auth-page auth-simple"><section className="auth-panel"><form className="auth-card" onSubmit={submit}><p className="eyebrow">Account recovery</p><h2>Choose a new password</h2>{error && <div className="alert">{error}</div>}{done ? <><div className="notice">Your password has been updated.</div><Link className="primary" href="/login">Sign in</Link></> : <><label>New password<input required minLength={12} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /><small>12+ characters with uppercase, lowercase, and a number</small></label><button className="primary" disabled={!token}>Update password</button></>}</form></section></main>; }
+export default function ResetPasswordPage() { return <Suspense><ResetForm /></Suspense>; }

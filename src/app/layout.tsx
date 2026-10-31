@@ -4,6 +4,7 @@ import { AuthProvider } from "@/features/auth/AuthProvider";
 import "./globals.css";
 import "./polish.css";
 import "./responsive.css";
+import "./management.css";
 
 const inter = Inter({
   variable: "--font-body",

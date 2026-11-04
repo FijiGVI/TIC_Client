@@ -47,7 +47,11 @@ async function getMicrosoftClient(): Promise<PublicClientApplication> {
 }
 
 function getLoginRequest(): RedirectRequest {
-  return { scopes: ['openid', 'profile', 'email'], redirectUri: getRedirectUri() };
+  return {
+    scopes: ['openid', 'profile', 'email'],
+    redirectUri: getRedirectUri(),
+    prompt: 'select_account',
+  };
 }
 
 export function startMicrosoftSignIn(returnTo = '/dashboard'): Promise<void> {

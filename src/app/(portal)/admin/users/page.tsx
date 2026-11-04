@@ -3,8 +3,10 @@
 import {
   IconEye,
   IconEyeOff,
+  IconPencil,
   IconRefresh,
   IconUserPlus,
+  IconX,
 } from "@tabler/icons-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/Pagination";
@@ -44,6 +46,9 @@ export default function UsersPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<Pick<ManagedUser, "name" | "email" | "role"> | null>(null);
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
@@ -93,23 +98,36 @@ export default function UsersPage() {
     }
   };
 
-  const updateUser = async (
-    user: ManagedUser,
-    patch: Partial<Pick<ManagedUser, "name" | "email" | "role">>,
-  ) => {
+  const beginEdit = (user: ManagedUser) => {
+    setEditingId(user.id);
+    setEditDraft({ name: user.name, email: user.email, role: user.role });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft(null);
+  };
+
+  const updateUser = async (user: ManagedUser) => {
+    if (!editDraft) return;
     setError("");
+    setUpdatingId(user.id);
     try {
-      await api.patch(`/users/${user.id}`, patch);
+      await api.patch(`/users/${user.id}`, editDraft);
+      cancelEdit();
       await load();
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to update user",
       );
+    } finally {
+      setUpdatingId(null);
     }
   };
 
   const setActive = async (user: ManagedUser, active: boolean) => {
     setError("");
+    setUpdatingId(user.id);
     try {
       await api.patch(`/users/${user.id}/active`, { active });
       await load();
@@ -119,6 +137,8 @@ export default function UsersPage() {
           ? reason.message
           : "Unable to update account status",
       );
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -188,8 +208,14 @@ export default function UsersPage() {
               <div className="user-row" key={user.id}>
                 <span className="avatar">{user.name.slice(0, 1)}</span>
                 <div className="user-identity">
-                  <strong>{user.name}</strong>
-                  <small>{user.email}</small>
+                  {editingId === user.id && editDraft ? (
+                    <div className="user-edit-fields">
+                      <input aria-label={`Name for ${user.name}`} value={editDraft.name} onChange={(event) => setEditDraft({ ...editDraft, name: event.target.value })} />
+                      <input aria-label={`Email for ${user.name}`} type="email" value={editDraft.email} onChange={(event) => setEditDraft({ ...editDraft, email: event.target.value })} />
+                    </div>
+                  ) : (
+                    <><strong>{user.name}</strong><small>{user.email}</small></>
+                  )}
                   <small>
                     Created {new Date(user.createdAt).toLocaleString()} ·
                     Updated {new Date(user.updatedAt).toLocaleString()}
@@ -202,10 +228,9 @@ export default function UsersPage() {
                 </span>
                 <select
                   aria-label={`Role for ${user.name}`}
-                  value={user.role}
-                  onChange={(event) =>
-                    void updateUser(user, { role: event.target.value as Role })
-                  }
+                  disabled={editingId !== user.id || updatingId === user.id}
+                  value={editingId === user.id && editDraft ? editDraft.role : user.role}
+                  onChange={(event) => editDraft && setEditDraft({ ...editDraft, role: event.target.value as Role })}
                 >
                   {roles.map((role) => (
                     <option value={role} key={role}>
@@ -213,12 +238,17 @@ export default function UsersPage() {
                     </option>
                   ))}
                 </select>
-                <button
-                  className={user.active ? "danger" : "secondary"}
-                  onClick={() => void setActive(user, !user.active)}
-                >
-                  {user.active ? "Deactivate" : "Restore"}
-                </button>
+                <div className="user-actions">
+                  {editingId === user.id ? (
+                    <>
+                      <button className="primary compact" disabled={updatingId === user.id || !editDraft?.name.trim() || !editDraft?.email.trim()} onClick={() => void updateUser(user)}>Save</button>
+                      <button className="secondary compact" disabled={updatingId === user.id} onClick={cancelEdit} aria-label={`Cancel editing ${user.name}`}><IconX size={16} /></button>
+                    </>
+                  ) : (
+                    <button className="secondary compact" disabled={updatingId !== null} onClick={() => beginEdit(user)}><IconPencil size={16} />Edit</button>
+                  )}
+                  <button className={user.active ? "danger compact" : "secondary compact"} disabled={updatingId === user.id || editingId === user.id} onClick={() => void setActive(user, !user.active)}>{user.active ? "Deactivate" : "Restore"}</button>
+                </div>
               </div>
             ))}
           </div>

@@ -106,6 +106,10 @@ input:hover, select:hover, textarea:hover { border-color: #aebdca; }
 .field-editor.improved .field-row > .check input { width: 16px; flex: 0 0 16px; }
 .save-bar { backdrop-filter: blur(10px); background: rgb(255 255 255 / 94%); }
 .invite-card { padding: 24px; }
+.user-edit-fields { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.35fr); gap: 8px; }
+.user-edit-fields input { min-height: 38px; }
+.user-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.user-actions button { white-space: nowrap; }
 .permission-section { border-radius: 14px; }
 
 .auth-page { background: #fff; }
@@ -159,6 +163,8 @@ input:hover, select:hover, textarea:hover { border-color: #aebdca; }
   .request-composer > aside button { box-shadow: 0 1px 3px rgb(16 42 67 / 6%); }
   .modal { border-radius: 20px 20px 0 0; }
   .auth-card { padding: 0; }
+  .user-edit-fields { grid-template-columns: 1fr; }
+  .user-actions { justify-content: flex-start; flex-wrap: wrap; }
 }
 
 @media (max-width: 420px) {

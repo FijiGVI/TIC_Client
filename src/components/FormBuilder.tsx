@@ -10,6 +10,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type KeyboardEvent,
@@ -118,6 +119,7 @@ export function FormBuilder() {
   const [draftStatus, setDraftStatus] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
+  const draftReady = useRef(false);
   const load = useCallback(async () => {
     try {
       const result = await api.get<{ data: RequestForm[]; meta: PaginationMeta }>(
@@ -136,6 +138,25 @@ export function FormBuilder() {
     return () => window.clearTimeout(timer);
   }, [load]);
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const savedDraft = window.localStorage.getItem("tic.form-builder.draft");
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft) as Draft;
+          if (parsed && typeof parsed === "object" && Array.isArray(parsed.fields) && Array.isArray(parsed.workflowSteps)) {
+            setDraft(parsed);
+            setDraftStatus("Recovered local draft");
+          }
+        } catch {
+          window.localStorage.removeItem("tic.form-builder.draft");
+        }
+      }
+      draftReady.current = true;
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (!draftReady.current) return;
     const timer = window.setTimeout(() => {
       window.localStorage.setItem(
         "tic.form-builder.draft",

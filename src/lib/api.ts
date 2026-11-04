@@ -1,14 +1,17 @@
-const configuredTicApiUrl = (
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v2/tic'
-).replace(/\/$/, '');
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 
-if (!configuredTicApiUrl.endsWith('/api/v2/tic')) {
-  throw new Error('NEXT_PUBLIC_API_URL must end with /api/v2/tic');
+if (!configuredApiUrl) {
+  throw new Error('NEXT_PUBLIC_API_URL is required');
 }
 
-const apiRootUrl = configuredTicApiUrl.endsWith('/tic')
-  ? configuredTicApiUrl.slice(0, -'/tic'.length)
-  : configuredTicApiUrl;
+const ticApiUrl = new URL(configuredApiUrl);
+if (!['http:', 'https:'].includes(ticApiUrl.protocol) || !ticApiUrl.pathname.replace(/\/$/, '').endsWith('/api/v2/tic')) {
+  throw new Error('NEXT_PUBLIC_API_URL must be an HTTP(S) URL ending with /api/v2/tic');
+}
+
+ticApiUrl.pathname = ticApiUrl.pathname.replace(/\/$/, '');
+const apiRootUrl = new URL(ticApiUrl);
+apiRootUrl.pathname = apiRootUrl.pathname.slice(0, -'/tic'.length);
 
 const ACCESS_TOKEN_KEY = 'tic.accessToken';
 const REFRESH_TOKEN_KEY = 'tic.refreshToken';
@@ -19,6 +22,12 @@ let refreshPromise: Promise<void> | null = null;
 
 type ApiScope = 'tic' | 'root';
 type ApiErrorBody = { error?: string; message?: string; errors?: Array<{ msg?: string }> };
+
+function apiUrl(scope: ApiScope, path: string): URL {
+  const baseUrl = scope === 'tic' ? ticApiUrl : apiRootUrl;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return new URL(`${baseUrl.pathname}${normalizedPath}`, baseUrl.origin);
+}
 
 export function setTokens(tokens: { accessToken: string; refreshToken?: string | null } | null): void {
   accessToken = tokens?.accessToken ?? null;
@@ -54,7 +63,7 @@ function getErrorMessage(body: ApiErrorBody): string {
 
 async function refreshAccessToken(): Promise<void> {
   if (!refreshToken) throw new Error('No refresh token is available');
-  const response = await fetch(`${apiRootUrl}/auth/refresh`, {
+  const response = await fetch(apiUrl('root', '/auth/refresh'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
@@ -64,8 +73,7 @@ async function refreshAccessToken(): Promise<void> {
 }
 
 async function request<T>(scope: ApiScope, path: string, init: RequestInit = {}, retry = true): Promise<T> {
-  const baseUrl = scope === 'tic' ? configuredTicApiUrl : apiRootUrl;
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(apiUrl(scope, path), {
     ...init,
     headers: {
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),

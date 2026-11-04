@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/Pagination";
 import { api } from "@/lib/api";
+import { sendEmail } from "@/lib/email";
 import type { PaginationMeta, ServiceRequest } from "@/lib/types";
 
 type Filter = "all" | "open" | "completed";
@@ -64,8 +65,19 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
     setError("");
     try {
       await api.post(`/requests/${selected.id}/workflow-action`, { action });
+      let emailWarning = "";
+      try {
+        await sendEmail({
+          to: selected.requesterSnapshot.email,
+          subject: `TIC request ${selected.referenceNumber} ${action === "approve" ? "updated" : "rejected"}`,
+          message: `Your ${selected.formSnapshot.name} request (${selected.referenceNumber}) was ${action === "approve" ? "approved for this workflow step" : "rejected"}.`,
+        });
+      } catch (reason) {
+        emailWarning = reason instanceof Error ? `Request updated, but ${reason.message.toLowerCase()}.` : "Request updated, but the notification email could not be sent.";
+      }
       setSelected(null);
       await load();
+      if (emailWarning) setError(emailWarning);
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to update request",

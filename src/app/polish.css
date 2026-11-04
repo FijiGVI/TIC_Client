@@ -1,6 +1,8 @@
 body{background:#f7f8fa}.portal-main{max-width:1600px;width:100%;margin-inline:auto}.page-header{min-height:72px}.page-header h1{font-size:clamp(30px,3vw,40px)}.page-actions{display:flex;align-items:center;gap:10px}.icon-button{display:grid;place-items:center;width:43px;height:43px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#475467}.icon-button:hover{border-color:#b8c5d0;background:#f9fafb}.icon-button:disabled,button:disabled{cursor:not-allowed;opacity:.55}.full-width{width:100%}.stats article{position:relative;overflow:hidden;padding:22px 24px}.stats article:before{position:absolute;inset:0 auto 0 0;width:3px;background:var(--blue);content:''}.stats article:nth-child(2):before{background:#d99a20}.stats article:nth-child(3):before{background:var(--teal)}.stats article small{color:#98a2b3;font-size:11px}.request-surface{overflow:hidden}.request-toolbar{gap:18px}.segmented{display:flex;padding:3px;border:1px solid var(--line);border-radius:9px;background:#f5f7f9}.segmented button{padding:7px 13px;border:0;border-radius:6px;background:transparent;color:var(--muted);font-size:12px;font-weight:700;text-transform:capitalize}.segmented button.selected{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(16,42,67,.12)}.request-toolbar .search{width:min(340px,45vw)}.request-row{grid-template-columns:1.15fr 1.7fr .9fr 1fr 24px}.request-row.managed{grid-template-columns:1.05fr 1.45fr 1.1fr .8fr 1fr 24px}.request-row.heading{cursor:default}.request-row.heading:hover{background:#fff}.request-row .row-arrow{color:#98a2b3}.request-row:not(.heading):hover .row-arrow{color:var(--blue);transform:translateX(2px)}.request-name{font-weight:650}.detail-meta{display:flex;align-items:center;gap:12px;margin:12px 0 28px;color:var(--muted);font-size:12px}.request-detail>h3{margin:24px 0 10px;font-size:13px}.request-detail dl{margin-top:0}.users-layout{grid-template-columns:minmax(0,1.7fr) minmax(320px,.8fr);align-items:start}.users-toolbar>div{display:grid;gap:3px}.users-toolbar small{color:var(--muted);font-size:11px}.users-toolbar .search{width:min(290px,40vw)}.user-list .user-row{grid-template-columns:40px minmax(150px,1fr) auto 180px;gap:14px;min-height:68px}.user-identity{min-width:0}.user-identity strong,.user-identity small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.role-badge{padding:5px 9px;border-radius:999px;background:#f0f2f5;color:#475467;font-size:10px;font-weight:800}.role-badge.admin{background:#f3edff;color:#6941c6}.role-badge.request_manager{background:#eaf2fb;color:#175b92}.role-badge.approver{background:#e7f7f3;color:#087c70}.invite-card{position:sticky;top:24px}.editor-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--line)}.editor-heading>span{display:grid;place-items:center;width:40px;height:40px;border-radius:9px;background:#eaf2fb;color:var(--blue)}.editor-heading h2{margin:0 0 5px}.editor-heading p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}.sidebar{box-shadow:8px 0 30px rgba(16,42,67,.06)}.sidebar nav a{position:relative}.sidebar nav a.active:after{position:absolute;right:11px;width:5px;height:5px;border-radius:50%;background:#54d5c5;content:''}
 @media(max-width:1050px){.users-layout{grid-template-columns:1fr}.invite-card{position:static}.request-row.managed{min-width:840px}.role-badge{display:none}}
 @media(max-width:720px){.portal{display:block;padding-bottom:72px}.sidebar{position:fixed;z-index:20;top:auto;bottom:0;left:0;display:block;width:100%;height:72px;padding:8px 10px;background:#102a43}.sidebar>.brand,.sidebar-user{display:none}.sidebar nav{display:flex;height:100%;align-items:center;justify-content:space-around;gap:2px}.sidebar nav a,.sidebar nav a:not(.active){display:grid;min-width:58px;justify-items:center;gap:3px;padding:7px 5px;font-size:9px}.sidebar nav a svg{width:20px}.sidebar nav a.active{box-shadow:none}.sidebar nav a.active:after{top:5px;right:8px}.portal-main{padding:26px 16px 42px}.page-header{margin-bottom:22px}.page-header h1{font-size:29px}.page-actions{width:100%}.page-actions .primary{flex:1}.stats{display:flex;margin-inline:-16px;padding:0 16px;overflow-x:auto;scroll-snap-type:x mandatory}.stats article{min-width:150px;scroll-snap-align:start}.request-toolbar{align-items:stretch;flex-direction:column-reverse}.request-toolbar .search,.users-toolbar .search{width:100%;min-width:0}.segmented{align-self:flex-start}.request-row{min-width:720px}.request-row.heading{display:none}.request-table{display:grid;gap:10px;padding:12px;background:#f7f8fa}.request-row:not(.heading),.request-row.managed:not(.heading){display:grid;min-width:0;grid-template-columns:1fr auto;gap:7px 12px;padding:15px;border:1px solid var(--line);border-radius:10px}.request-row:not(.heading)>strong,.request-row:not(.heading)>.request-name{grid-column:1}.request-row:not(.heading)>.status,.request-row:not(.heading)>span:has(.status){grid-column:2;grid-row:1}.request-row:not(.heading)>.row-arrow{display:none}.request-row.managed:not(.heading)>span:nth-of-type(2){color:var(--muted);font-size:11px}.users-toolbar{align-items:stretch;flex-direction:column}.user-list .user-row{grid-template-columns:38px minmax(0,1fr) 140px;padding:13px}.user-list .user-row>select{grid-column:3}.modal{max-height:94dvh;padding:24px}.modal dl{grid-template-columns:1fr}.form-surface{padding:24px 18px}}
+.sidebar-user .sidebar-logout{display:flex;grid-column:1/-1;width:100%;align-items:center;justify-content:center;gap:8px;margin-top:6px;padding:9px 12px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(255,255,255,.06);color:#dbe7ee;font-size:12px;font-weight:700}
+.sidebar-user .sidebar-logout:hover{border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.12);color:#fff}
 .sso-callback-page{grid-template-columns:1fr;background:var(--page)}
 .sso-callback-page .auth-panel{min-height:100dvh;padding:24px}
 .sso-callback-card{max-width:480px;text-align:center;align-items:center}
@@ -9,3 +11,109 @@ body{background:#f7f8fa}.portal-main{max-width:1600px;width:100%;margin-inline:a
 .sso-spinner{animation:sso-spin .8s linear infinite}
 @keyframes sso-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.sso-spinner{animation:none}}
+
+.pagination{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.pagination>div{display:flex;align-items:center;gap:12px}
+.pagination strong{color:var(--ink);font-size:12px;white-space:nowrap}
+.pagination button{min-height:38px}
+.builder-responsive>aside>.pagination{margin:12px -20px -20px;grid-column:1/-1}
+
+@media(max-width:1050px){
+  .builder-responsive>aside{flex-wrap:wrap}
+  .builder-responsive>aside>.pagination{flex-basis:100%;width:100%;margin:8px 0 0}
+  .builder-responsive>aside>.pagination button{min-width:0}
+  .permission-table{overflow-x:auto;overscroll-behavior-inline:contain}
+  .permission-row{min-width:680px}
+}
+
+@media(max-width:720px){
+  .pagination{align-items:stretch;flex-direction:column;padding:14px 12px;text-align:center}
+  .pagination>div{display:grid;grid-template-columns:1fr auto 1fr}
+  .pagination button{justify-content:center;padding-inline:10px}
+  .user-list .user-row{align-items:start}
+  .user-list .user-row>button,.user-list .user-row>select{width:100%}
+  .builder-responsive>aside{display:grid;grid-template-columns:1fr;overflow:visible}
+  .builder-responsive>aside button{min-width:0;width:100%}
+  .field-row{grid-template-columns:32px minmax(0,1fr)}
+  .field-row>input,.field-row>select,.field-row>label{grid-column:2}
+  .field-row>button{grid-column:2;justify-self:end}
+  .editor-actions,.save-bar{align-items:stretch;flex-direction:column}
+  .editor-actions button,.save-bar button{justify-content:center;width:100%}
+  .modal-actions{display:grid;grid-template-columns:1fr 1fr}
+}
+
+/* Keep narrow-screen overrides last so tablet builder rules cannot win the cascade. */
+@media(max-width:720px){
+  .builder-responsive>aside{display:grid;grid-template-columns:1fr;overflow:visible}
+  .builder-responsive>aside>button{min-width:0;width:100%}
+  .builder-responsive>aside>.pagination{display:flex;width:100%;margin:8px 0 0}
+  .field-editor.improved .field-row{grid-template-columns:28px minmax(0,1fr) 36px}
+}
+
+@media(max-width:420px){
+  .pagination>div{grid-template-columns:1fr 1fr}
+  .pagination strong{grid-column:1/-1;grid-row:1}
+  .pagination button span{display:none}
+  .stats article{min-width:136px}
+  .portal-main{padding-inline:12px}
+  .modal{padding:20px 16px}
+}
+
+/* TIC administration and form-builder layouts */
+.builder-responsive{grid-template-columns:minmax(220px,280px) minmax(0,1fr);align-items:start}
+.builder-responsive>.editor{min-width:0;overflow:hidden}
+.editor-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.editor-actions small{color:var(--muted)}
+.audience{display:flex;flex-wrap:wrap;gap:10px 18px;margin:4px 0 20px;padding:14px;border:1px solid var(--line);border-radius:8px}
+.audience legend{padding:0 6px;font-size:12px;font-weight:800}
+.audience .check{display:flex;align-items:center;gap:7px;margin:0}
+.field-editor.improved>article{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#fff}
+.field-editor.improved .field-row{display:grid;grid-template-columns:28px minmax(150px,1.4fr) minmax(120px,1fr) minmax(110px,.7fr) auto 36px;align-items:center;gap:8px}
+.field-editor.improved .field-row>span{display:grid;width:26px;height:26px;place-items:center;border-radius:50%;background:#eef2f6;font-size:11px}
+.field-editor.improved textarea{min-height:72px;margin:0}
+.field-editor.improved .field-row button{display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:6px;background:#fff0ee;color:var(--danger)}
+.save-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.save-bar small{color:var(--muted)}
+.readonly{cursor:not-allowed;background:#f2f4f7;color:#667085}
+.form-preview{max-width:760px}
+.form-preview>p:not(.eyebrow){overflow-wrap:anywhere;white-space:pre-wrap;color:var(--muted)}
+.permission-section{margin-top:24px;overflow:hidden}
+.permission-table{overflow-x:auto}
+.permission-row{display:grid;min-width:760px;grid-template-columns:minmax(220px,1.5fr) repeat(4,minmax(110px,1fr));align-items:center;border-bottom:1px solid var(--line)}
+.permission-row>*{margin:0;padding:12px 16px;text-align:center}
+.permission-row>span{text-align:left;font-size:12px;font-weight:650}
+.permission-row.heading{background:#f8fafb;color:var(--muted);font-size:11px;text-transform:capitalize}
+.permission-row label{display:grid;place-items:center}
+.permission-row input{width:16px;min-height:16px}
+.permission-actions{display:flex;min-width:760px;justify-content:flex-end;gap:8px;padding:14px 16px;flex-wrap:wrap}
+.user-list .user-row{grid-template-columns:40px minmax(180px,1fr) auto 160px auto}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+@media(max-width:1050px){
+  .builder-responsive{grid-template-columns:1fr}
+  .builder-responsive>aside{display:flex;gap:6px;overflow-x:auto}
+  .builder-responsive>aside h2{display:none}
+  .builder-responsive>aside button{min-width:210px}
+  .field-editor.improved .field-row{grid-template-columns:28px minmax(160px,1fr) minmax(120px,.8fr)}
+  .field-editor.improved .field-row>*:nth-child(n+4){grid-column:auto}
+}
+@media(max-width:720px){
+  .editor{padding:18px}
+  .form-grid{grid-template-columns:1fr}
+  .form-grid .wide{grid-column:auto}
+  .field-editor.improved .field-row{grid-template-columns:28px minmax(0,1fr) 36px}
+  .field-editor.improved .field-row>*:nth-child(3),.field-editor.improved .field-row>*:nth-child(4),.field-editor.improved .field-row>*:nth-child(5){grid-column:2/-1}
+  .field-editor.improved .field-row>button{grid-column:3;grid-row:1}
+  .section-title{align-items:flex-start;gap:12px}
+  .save-bar{align-items:stretch;flex-direction:column}
+  .save-bar .primary{width:100%}
+  .user-list .user-row{grid-template-columns:38px minmax(0,1fr)}
+  .user-list .user-row>*:nth-child(n+3){grid-column:2}
+}
+
+/* Final narrow-screen cascade overrides. */
+@media(max-width:720px){
+  .builder-responsive>aside{display:grid;grid-template-columns:1fr;overflow:visible}
+  .builder-responsive>aside>button{min-width:0;width:100%}
+  .builder-responsive>aside>.pagination{display:flex;width:100%;margin:8px 0 0}
+}

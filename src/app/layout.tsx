@@ -5,6 +5,7 @@ import "./globals.css";
 import "./polish.css";
 import "./responsive.css";
 import "./management.css";
+import "./design-system.css";
 
 const inter = Inter({
   variable: "--font-body",

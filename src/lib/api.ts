@@ -1,10 +1,108 @@
-const API_URL = (
-  process.env.NODE_ENV === 'production'
-    ? '/api'
-    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
+const configuredTicApiUrl = (
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v2/tic'
 ).replace(/\/$/, '');
+
+if (!configuredTicApiUrl.endsWith('/api/v2/tic')) {
+  throw new Error('NEXT_PUBLIC_API_URL must end with /api/v2/tic');
+}
+
+const apiRootUrl = configuredTicApiUrl.endsWith('/tic')
+  ? configuredTicApiUrl.slice(0, -'/tic'.length)
+  : configuredTicApiUrl;
+
+const ACCESS_TOKEN_KEY = 'tic.accessToken';
+const REFRESH_TOKEN_KEY = 'tic.refreshToken';
+
 let accessToken: string | null = null;
-export const setAccessToken = (token: string | null) => { accessToken = token; if (typeof window !== 'undefined') { if (token) sessionStorage.setItem('tic.accessToken', token); else sessionStorage.removeItem('tic.accessToken'); } };
-export const restoreAccessToken = () => { if (typeof window !== 'undefined') accessToken = sessionStorage.getItem('tic.accessToken'); return accessToken; };
-async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> { const response = await fetch(`${API_URL}${path}`, { ...init, credentials: 'include', headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...init.headers } }); if (response.status === 401 && retry && path !== '/auth/refresh') { try { const refreshed = await request<{ data: { accessToken: string } }>('/auth/refresh', { method: 'POST' }, false); setAccessToken(refreshed.data.accessToken); return request<T>(path, init, false); } catch { setAccessToken(null); } } if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error || 'Request failed'); } if (response.status === 204) return undefined as T; return response.json(); }
-export const api = { get: <T>(path: string) => request<T>(path), post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }), put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }), patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }) };
+let refreshToken: string | null = null;
+let refreshPromise: Promise<void> | null = null;
+
+type ApiScope = 'tic' | 'root';
+type ApiErrorBody = { error?: string; message?: string; errors?: Array<{ msg?: string }> };
+
+export function setTokens(tokens: { accessToken: string; refreshToken?: string | null } | null): void {
+  accessToken = tokens?.accessToken ?? null;
+  refreshToken = tokens?.refreshToken ?? null;
+
+  if (typeof window === 'undefined') return;
+  if (accessToken) sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  else sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+  if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  else localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+export function restoreTokens(): void {
+  if (typeof window === 'undefined') return;
+  accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+  refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export async function logoutSession(): Promise<void> {
+  try {
+    await request('root', '/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    }, false);
+  } finally {
+    setTokens(null);
+  }
+}
+
+function getErrorMessage(body: ApiErrorBody): string {
+  return body.error || body.message || body.errors?.[0]?.msg || 'Request failed';
+}
+
+async function refreshAccessToken(): Promise<void> {
+  if (!refreshToken) throw new Error('No refresh token is available');
+  const response = await fetch(`${apiRootUrl}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+  if (!response.ok) throw new Error('Your session has expired');
+  setTokens(await response.json() as { accessToken: string; refreshToken: string });
+}
+
+async function request<T>(scope: ApiScope, path: string, init: RequestInit = {}, retry = true): Promise<T> {
+  const baseUrl = scope === 'tic' ? configuredTicApiUrl : apiRootUrl;
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: {
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...init.headers,
+    },
+  });
+
+  if (response.status === 401 && retry && refreshToken && path !== '/auth/refresh') {
+    try {
+      refreshPromise ??= refreshAccessToken().finally(() => { refreshPromise = null; });
+      await refreshPromise;
+      return request<T>(scope, path, init, false);
+    } catch {
+      setTokens(null);
+    }
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({})) as ApiErrorBody;
+    throw new Error(getErrorMessage(body));
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+function createApi(scope: ApiScope) {
+  return {
+    get: <T>(path: string) => request<T>(scope, path),
+    post: <T>(path: string, body?: unknown) => request<T>(scope, path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
+    put: <T>(path: string, body: unknown) => request<T>(scope, path, { method: 'PUT', body: JSON.stringify(body) }),
+    patch: <T>(path: string, body: unknown) => request<T>(scope, path, { method: 'PATCH', body: JSON.stringify(body) }),
+  };
+}
+
+/** TIC bounded-context endpoints under /api/v2/tic. */
+export const api = createApi('tic');
+
+/** Shared ACT endpoints such as authentication under /api/v2. */
+export const actApi = createApi('root');

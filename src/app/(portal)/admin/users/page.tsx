@@ -1,92 +1,364 @@
-'use client';
+"use client";
 
-import { IconEye, IconEyeOff, IconSearch, IconUserPlus, IconUsers } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { api } from '@/lib/api';
-import type { Role, RolePermissionSet, User } from '@/lib/types';
+import {
+  IconEye,
+  IconEyeOff,
+  IconRefresh,
+  IconUserPlus,
+} from "@tabler/icons-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Pagination } from "@/components/Pagination";
+import { api } from "@/lib/api";
+import type {
+  ManagedUser,
+  PaginationMeta,
+  Role,
+  RolePermissionSet,
+  TicPermission,
+} from "@/lib/types";
 
-const emptyUser = { name: '', email: '', password: '', role: 'requester' as Role, active: true };
-const roleLabels: Record<Role, string> = { admin: 'Administrator', request_manager: 'Request manager', approver: 'Approver', requester: 'Requester' };
+const roles: Role[] = ["admin", "request_manager", "approver", "requester"];
+const permissions: TicPermission[] = [
+  "users.manage",
+  "roles.manage",
+  "forms.manage",
+  "requests.create",
+  "requests.read.all",
+  "requests.read.assigned",
+  "requests.read.own",
+  "requests.update",
+  "requests.approve",
+];
+const initialUser = {
+  name: "",
+  email: "",
+  password: "",
+  role: "requester" as Role,
+};
+const initialMeta: PaginationMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [form, setForm] = useState(emptyUser);
-  const [query, setQuery] = useState('');
-  const [error, setError] = useState('');
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [matrix, setMatrix] = useState<RolePermissionSet[]>([]);
+  const [draft, setDraft] = useState(initialUser);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [permissionSets, setPermissionSets] = useState<RolePermissionSet[]>([]);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const response = await api.get<{ data: User[] }>('/users'); setUsers(response.data); const roles = await api.get<{ data: RolePermissionSet[] }>('/roles/permissions'); setPermissionSets(roles.data); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to load users'); }
-    finally { setLoading(false); }
-  }, []);
+    setError("");
+    try {
+      const [userResponse, roleResponse] = await Promise.all([
+        api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/users?page=${page}&pageSize=20`),
+        api.get<{ data: RolePermissionSet[] }>("/roles/permissions"),
+      ]);
+      setUsers(userResponse.data);
+      setMeta(userResponse.meta);
+      setMatrix(roleResponse.data);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to load users and roles",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    // Loading is intentionally initiated when the requested server page changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
   }, [load]);
 
-  const filteredUsers = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return users.filter((user) => !normalized || user.name.toLowerCase().includes(normalized) || user.email.toLowerCase().includes(normalized) || roleLabels[user.role].toLowerCase().includes(normalized));
-  }, [query, users]);
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault(); setSaving(true); setError('');
-    try { await api.post('/users', form); setForm(emptyUser); await load(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to create user'); }
-    finally { setSaving(false); }
+  const createUser = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await api.post("/users", draft);
+      setDraft(initialUser);
+      await load();
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to create user",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const updateRole = async (user: User, role: Role) => {
-    setUpdatingId(user.id); setError('');
-    try { await api.patch(`/users/${user.id}`, { role }); await load(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to update role'); }
-    finally { setUpdatingId(null); }
+  const updateUser = async (
+    user: ManagedUser,
+    patch: Partial<Pick<ManagedUser, "name" | "email" | "role">>,
+  ) => {
+    setError("");
+    try {
+      await api.patch(`/users/${user.id}`, patch);
+      await load();
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to update user",
+      );
+    }
   };
 
-  const updateStatus = async (user: User, active: boolean) => {
-    setUpdatingId(user.id); setError('');
-    try { await api.patch(`/users/${user.id}`, { active }); await load(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to update account'); }
-    finally { setUpdatingId(null); }
+  const setActive = async (user: ManagedUser, active: boolean) => {
+    setError("");
+    try {
+      await api.patch(`/users/${user.id}/active`, { active });
+      await load();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to update account status",
+      );
+    }
   };
 
-  const togglePermission = async (set: RolePermissionSet, permission: string) => {
-    const permissions = set.permissions.includes(permission) ? set.permissions.filter((item) => item !== permission) : [...set.permissions, permission];
-    try { await api.put(`/roles/${set.role}/permissions`, { permissions }); await load(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to update permissions'); }
+  const togglePermission = (role: Role, permission: TicPermission) => {
+    setMatrix((current) =>
+      current.map((entry) =>
+        entry.role !== role
+          ? entry
+          : {
+              ...entry,
+              permissions: entry.permissions.includes(permission)
+                ? entry.permissions.filter((item) => item !== permission)
+                : [...entry.permissions, permission],
+            },
+      ),
+    );
+  };
+
+  const saveRole = async (entry: RolePermissionSet) => {
+    setError("");
+    try {
+      await api.put(`/roles/${entry.role}/permissions`, {
+        permissions: entry.permissions,
+      });
+      await load();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to save role permissions",
+      );
+    }
   };
 
   return (
     <>
-      <header className="page-header"><div><p className="eyebrow">Administration</p><h1>Users & roles</h1><p>Invite team members and keep access aligned with their responsibilities.</p></div></header>
-      {error && <div className="alert" role="alert">{error}</div>}
-      <div className="admin-grid users-layout">
+      <header className="page-header">
+        <div>
+          <p className="eyebrow">Administration</p>
+          <h1>Users & roles</h1>
+          <p>Create accounts, control access, and review account activity.</p>
+        </div>
+        <button
+          className="secondary"
+          onClick={() => void load()}
+          disabled={loading}
+        >
+          <IconRefresh size={17} />
+          Refresh
+        </button>
+      </header>
+      {error && (
+        <div className="alert" role="alert">
+          {error}
+        </div>
+      )}
+      <div className="users-layout">
         <section className="surface">
-          <div className="surface-toolbar users-toolbar"><div><h2>Team directory</h2><small>{users.length} {users.length === 1 ? 'user' : 'users'}</small></div><label className="search"><IconSearch size={18} /><input aria-label="Search users" placeholder="Search name, email, or role" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
-          <div className="user-list">
-            {loading && !users.length && <div className="empty"><div className="spinner" /><h3>Loading team</h3></div>}
-            {!loading && filteredUsers.map((user) => <div className={`user-row ${user.active ? '' : 'inactive'}`} key={user.id}><span className="avatar">{user.name[0]}</span><div className="user-identity"><strong>{user.name}</strong><small>{user.email}</small><small>Updated {new Date(user.updatedAt).toLocaleString()}</small></div><span className={`role-badge ${user.role}`}>{roleLabels[user.role]}</span><select aria-label={`Role for ${user.name}`} disabled={updatingId === user.id || !user.active} value={user.role} onChange={(event) => void updateRole(user, event.target.value as Role)}>{Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><button className="secondary compact" disabled={updatingId === user.id} onClick={() => void updateStatus(user, !user.active)}>{user.active ? 'Deactivate' : 'Restore'}</button></div>)}
-            {!loading && !filteredUsers.length && <div className="empty"><IconUsers size={34} /><h3>No users found</h3><p>Try a different search.</p></div>}
+          <div className="surface-toolbar">
+            <div>
+              <h2>Users</h2>
+              <small>{meta.total} accounts</small>
+            </div>
           </div>
+          <div className="user-list">
+            {users.map((user) => (
+              <div className="user-row" key={user.id}>
+                <span className="avatar">{user.name.slice(0, 1)}</span>
+                <div className="user-identity">
+                  <strong>{user.name}</strong>
+                  <small>{user.email}</small>
+                  <small>
+                    Created {new Date(user.createdAt).toLocaleString()} ·
+                    Updated {new Date(user.updatedAt).toLocaleString()}
+                  </small>
+                </div>
+                <span
+                  className={`status ${user.active ? "completed" : "rejected"}`}
+                >
+                  {user.active ? "Active" : "Inactive"}
+                </span>
+                <select
+                  aria-label={`Role for ${user.name}`}
+                  value={user.role}
+                  onChange={(event) =>
+                    void updateUser(user, { role: event.target.value as Role })
+                  }
+                >
+                  {roles.map((role) => (
+                    <option value={role} key={role}>
+                      {role.replace("_", " ")}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className={user.active ? "danger" : "secondary"}
+                  onClick={() => void setActive(user, !user.active)}
+                >
+                  {user.active ? "Deactivate" : "Restore"}
+                </button>
+              </div>
+            ))}
+          </div>
+          <Pagination meta={meta} disabled={loading} onPageChange={setPage} />
         </section>
-        <section className="surface editor invite-card">
-          <div className="editor-heading"><span><IconUserPlus size={21} /></span><div><h2>Add team member</h2><p>They’ll be prompted to change this temporary password.</p></div></div>
-          <form onSubmit={submit}>
-            <label>Full name<input required autoComplete="off" placeholder="e.g. Maria Santos" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-            <label>Work email<input required type="email" autoComplete="off" placeholder="name@company.com" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
-            <label>Temporary password<span className="password-input"><input required minLength={12} type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="At least 12 characters" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <IconEyeOff size={18} /> : <IconEye size={18} />}</button></span><small>Use uppercase, lowercase, and a number.</small></label>
-            <label>Access role<select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as Role })}>{Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <button className="primary full-width" disabled={saving}>{saving ? 'Creating user…' : <><IconUserPlus size={18} />Create user</>}</button>
+        <aside className="surface invite-card">
+          <div className="editor-heading">
+            <span>
+              <IconUserPlus size={20} />
+            </span>
+            <div>
+              <h2>Create user</h2>
+              <p>
+                The user must change this temporary password after signing in.
+              </p>
+            </div>
+          </div>
+          <form onSubmit={createUser}>
+            <label>
+              Full name
+              <input
+                required
+                maxLength={200}
+                value={draft.name}
+                onChange={(event) =>
+                  setDraft({ ...draft, name: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              Email
+              <input
+                required
+                type="email"
+                value={draft.email}
+                onChange={(event) =>
+                  setDraft({ ...draft, email: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              Temporary password
+              <span className="password-input">
+                <input
+                  required
+                  minLength={12}
+                  type={showPassword ? "text" : "password"}
+                  value={draft.password}
+                  onChange={(event) =>
+                    setDraft({ ...draft, password: event.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((value) => !value)}
+                >
+                  {showPassword ? (
+                    <IconEyeOff size={18} />
+                  ) : (
+                    <IconEye size={18} />
+                  )}
+                </button>
+              </span>
+              <small>
+                12+ characters with uppercase, lowercase, and a number.
+              </small>
+            </label>
+            <label>
+              TIC role
+              <select
+                value={draft.role}
+                onChange={(event) =>
+                  setDraft({ ...draft, role: event.target.value as Role })
+                }
+              >
+                {roles.map((role) => (
+                  <option value={role} key={role}>
+                    {role.replace("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="primary full-width" disabled={saving}>
+              {saving ? "Creating…" : "Create user"}
+            </button>
           </form>
-        </section>
+        </aside>
       </div>
-      <section className="surface permission-matrix"><div className="surface-toolbar"><div><h2>Permission matrix</h2><small>Changes apply to new API requests immediately and to navigation after sign-in refresh.</small></div></div><div className="permission-grid">{permissionSets.map((set) => <article key={set.role}><h3>{roleLabels[set.role]}</h3>{['users.manage','roles.manage','forms.manage','requests.create','requests.read.all','requests.read.assigned','requests.read.own','requests.update','requests.approve'].map((permission) => <label className="check" key={permission}><input type="checkbox" checked={set.permissions.includes(permission)} onChange={() => void togglePermission(set, permission)} />{permission}</label>)}</article>)}</div></section>
+      <section className="surface permission-section">
+        <div className="surface-toolbar">
+          <div>
+            <h2>Permission matrix</h2>
+            <small>Server-authoritative TIC permissions</small>
+          </div>
+        </div>
+        <div className="permission-table">
+          <div className="permission-row heading">
+            <span>Permission</span>
+            {roles.map((role) => (
+              <strong key={role}>{role.replace("_", " ")}</strong>
+            ))}
+          </div>
+          {permissions.map((permission) => (
+            <div className="permission-row" key={permission}>
+              <span>{permission}</span>
+              {roles.map((role) => {
+                const entry = matrix.find((item) => item.role === role);
+                return (
+                  <label key={role}>
+                    <input
+                      type="checkbox"
+                      checked={entry?.permissions.includes(permission) || false}
+                      onChange={() => togglePermission(role, permission)}
+                    />
+                    <span className="sr-only">
+                      {role} {permission}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          ))}
+          <div className="permission-actions">
+            {roles.map((role) => {
+              const entry = matrix.find((item) => item.role === role);
+              return (
+                <button
+                  className="secondary"
+                  key={role}
+                  disabled={!entry}
+                  onClick={() => entry && void saveRole(entry)}
+                >
+                  Save {role.replace("_", " ")}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
     </>
   );
 }

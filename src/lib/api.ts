@@ -1,12 +1,13 @@
-const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-
-if (!configuredApiUrl) {
-  throw new Error('NEXT_PUBLIC_API_URL is required');
-}
+const DEFAULT_TIC_API_URL = 'https://act-api-staging.globalvisionsinc.com.ph/api/v2/tic';
+const environmentApiUrl = process.env.NEXT_PUBLIC_TIC_API_URL?.trim()
+  || process.env.NEXT_PUBLIC_API_URL?.trim();
+const configuredApiUrl = environmentApiUrl && /^https?:\/\//i.test(environmentApiUrl)
+  ? environmentApiUrl
+  : DEFAULT_TIC_API_URL;
 
 const ticApiUrl = new URL(configuredApiUrl);
 if (!['http:', 'https:'].includes(ticApiUrl.protocol) || !ticApiUrl.pathname.replace(/\/$/, '').endsWith('/api/v2/tic')) {
-  throw new Error('NEXT_PUBLIC_API_URL must be an HTTP(S) URL ending with /api/v2/tic');
+  throw new Error('The TIC API URL must be an HTTP(S) URL ending with /api/v2/tic');
 }
 
 ticApiUrl.pathname = ticApiUrl.pathname.replace(/\/$/, '');

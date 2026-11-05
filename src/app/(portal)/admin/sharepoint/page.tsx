@@ -3,6 +3,8 @@
 import { IconDatabaseImport, IconRefresh } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { Pagination } from '@/components/Pagination';
+import type { PaginationMeta } from '@/lib/types';
 
 type MappingKey = 'title' | 'businessUnit' | 'entity' | 'businessUnitHead' | 'assistantBusinessUnitHead' | 'validity';
 type Mapping = Record<MappingKey, string>;
@@ -10,7 +12,8 @@ type BusinessUnit = {
   id: string; sharepointItemId: string; title: string | null; businessUnit: string | null; entity: string | null;
   businessUnitHead: string | null; assistantBusinessUnitHead: string | null; validity: string | null; syncedAt: string;
 };
-type ListResponse = { data: BusinessUnit[]; meta: { sourceFields: string[]; mapping: Mapping } };
+type ListResponse = { data: BusinessUnit[]; meta: PaginationMeta & { sourceFields: string[]; mapping: Mapping } };
+const initialMeta: PaginationMeta = { page: 1, pageSize: 25, total: 0, totalPages: 1 };
 
 const labels: Record<MappingKey, string> = {
   title: 'Code / title', businessUnit: 'Business unit', entity: 'Entity', businessUnitHead: 'BU head',
@@ -25,11 +28,13 @@ export default function SharePointBusinessUnitsPage() {
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
 
   const load = useCallback(async () => {
-    const result = await api.get<ListResponse>('/integrations/sharepoint/business-units');
-    setRows(result.data); setSourceFields(result.meta.sourceFields); setMapping(result.meta.mapping);
-  }, []);
+    const result = await api.get<ListResponse>(`/integrations/sharepoint/business-units?page=${page}&pageSize=25`);
+    setRows(result.data); setSourceFields(result.meta.sourceFields); setMapping(result.meta.mapping); setMeta(result.meta);
+  }, [page]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -56,6 +61,7 @@ export default function SharePointBusinessUnitsPage() {
     </section>
     <section className="surface sharepoint-surface"><div className="surface-toolbar"><div><h2>Retrieved data</h2><small>{rows.length} records stored locally{rows[0] ? ` · Last synced ${new Date(rows[0].syncedAt).toLocaleString()}` : ''}</small></div></div>
       {loading ? <div className="empty"><div className="spinner" /><p>Loading business units…</p></div> : rows.length === 0 ? <div className="empty"><IconDatabaseImport size={34} /><h3>No synchronized records</h3><p>Configure the server credentials, review the mapping, then sync SharePoint.</p></div> : <div className="sharepoint-table"><div className="sharepoint-row heading"><span>ID</span><span>Code</span><span>Business unit</span><span>Entity</span><span>BU head</span><span>Assistant</span><span>Validity</span></div>{rows.map((row) => <div className="sharepoint-row" key={row.id}><span>{row.sharepointItemId}</span><strong>{row.title || '—'}</strong><span>{row.businessUnit || '—'}</span><span>{row.entity || '—'}</span><span>{row.businessUnitHead || '—'}</span><span>{row.assistantBusinessUnitHead || '—'}</span><span>{row.validity || '—'}</span></div>)}</div>}
+      <Pagination meta={meta} disabled={loading} onPageChange={setPage} />
     </section>
   </>;
 }

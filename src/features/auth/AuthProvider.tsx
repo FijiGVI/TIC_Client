@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { actApi, api, logoutSession, restoreTokens, setTokens } from '@/lib/api';
+import { actApi, api, hasStoredSession, logoutSession, restoreTokens, setTokens } from '@/lib/api';
 import type { Role, TicPermission, User } from '@/lib/types';
 
 type ActUser = { id: number; email: string; firstName?: string | null; lastName?: string | null; role: string; userRole?: { name?: string | null } | null; shouldChangePassword?: boolean };
@@ -56,6 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     restoreTokens();
     const timer = window.setTimeout(() => {
+      if (!hasStoredSession()) {
+        setLoading(false);
+        return;
+      }
       refreshUser().catch(() => setUser(null)).finally(() => setLoading(false));
     }, 0);
     return () => window.clearTimeout(timer);

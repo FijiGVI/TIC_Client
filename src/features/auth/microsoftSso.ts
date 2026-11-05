@@ -89,9 +89,22 @@ export function completeMicrosoftSignIn(): Promise<AuthenticationResult> {
   if (completionPromise) return completionPromise;
   completionPromise = (async () => {
     const client = await getMicrosoftClient();
-    const result = await client.handleRedirectPromise({ navigateToLoginRequestUrl: false });
-    if (!result?.idToken) throw new Error('Microsoft did not return a valid sign-in response.');
-    return result;
+    const redirectResult = await client.handleRedirectPromise({ navigateToLoginRequestUrl: false });
+    if (redirectResult?.idToken) return redirectResult;
+
+    // A callback may already have been consumed during hydration or development
+    // remounting. Recover the completed Microsoft session from MSAL's cache.
+    const account = client.getActiveAccount() || client.getAllAccounts()[0];
+    if (account) {
+      client.setActiveAccount(account);
+      const cachedResult = await client.acquireTokenSilent({
+        account,
+        scopes: ['openid', 'profile', 'email'],
+      });
+      if (cachedResult.idToken) return cachedResult;
+    }
+
+    throw new Error('Microsoft sign-in response was not found. Please start sign-in again.');
   })().catch((error) => {
     completionPromise = null;
     throw error;

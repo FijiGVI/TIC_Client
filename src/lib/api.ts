@@ -47,6 +47,11 @@ export function restoreTokens(): void {
   refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
+export function hasStoredSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(sessionStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY));
+}
+
 export async function logoutSession(): Promise<void> {
   try {
     await request('root', '/auth/logout', {

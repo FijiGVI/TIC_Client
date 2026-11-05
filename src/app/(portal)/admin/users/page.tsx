@@ -47,9 +47,10 @@ export default function UsersPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [editDraft, setEditDraft] = useState<Pick<ManagedUser, "name" | "email" | "role"> | null>(null);
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | number | null>(null);
+  const [source, setSource] = useState<"tic" | "act">("tic");
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
@@ -59,7 +60,7 @@ export default function UsersPage() {
     setError("");
     try {
       const [userResponse, roleResponse] = await Promise.all([
-        api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/users?page=${page}&pageSize=20`),
+        api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/${source === "tic" ? "users" : "act-identities"}?page=${page}&pageSize=20`),
         api.get<{ data: RolePermissionSet[] }>("/roles/permissions"),
       ]);
       setUsers(userResponse.data);
@@ -74,7 +75,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, source]);
 
   useEffect(() => {
     // Loading is intentionally initiated when the requested server page changes.
@@ -211,9 +212,10 @@ export default function UsersPage() {
         <section className="surface">
           <div className="surface-toolbar">
             <div>
-              <h2>Users</h2>
+              <h2>{source === "tic" ? "TIC accounts" : "ACT identities"}</h2>
               <small>{meta.total} accounts</small>
             </div>
+            <div className="segmented"><button className={source === "tic" ? "selected" : ""} onClick={() => { setSource("tic"); setPage(1); }}>TIC accounts</button><button className={source === "act" ? "selected" : ""} onClick={() => { setSource("act"); setPage(1); }}>ACT identities</button></div>
           </div>
           <div className="user-list">
             {users.map((user) => (
@@ -240,7 +242,7 @@ export default function UsersPage() {
                 </span>
                 <select
                   aria-label={`Role for ${user.name}`}
-                  disabled={editingId !== user.id || updatingId === user.id}
+                  disabled={source === "act" || editingId !== user.id || updatingId === user.id}
                   value={editingId === user.id && editDraft ? editDraft.role : user.role}
                   onChange={(event) => editDraft && setEditDraft({ ...editDraft, role: event.target.value as Role })}
                 >
@@ -250,7 +252,7 @@ export default function UsersPage() {
                     </option>
                   ))}
                 </select>
-                <div className="user-actions">
+                {source === "tic" && <div className="user-actions">
                   {editingId === user.id ? (
                     <>
                       <button className="primary compact" disabled={updatingId === user.id || !editDraft?.name.trim() || !editDraft?.email.trim()} onClick={() => void updateUser(user)}>Save</button>
@@ -260,7 +262,7 @@ export default function UsersPage() {
                     <button className="secondary compact" disabled={updatingId !== null} onClick={() => beginEdit(user)}><IconPencil size={16} />Edit</button>
                   )}
                   <button className={user.active ? "danger compact" : "secondary compact"} disabled={updatingId === user.id || editingId === user.id} onClick={() => void setActive(user, !user.active)}>{user.active ? "Deactivate" : "Restore"}</button>
-                </div>
+                </div>}
               </div>
             ))}
           </div>

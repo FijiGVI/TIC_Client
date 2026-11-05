@@ -82,10 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     login: async (identifier, password) => {
-      const session = await actApi.post<AuthSession>('/auth/login', { identifier, password });
-      setTokens(session);
-      const context = await api.get<{ data: TicContext }>('/me');
-      setUser(normalizeUser(session.user, context.data));
+      try {
+        const session = await api.post<{ accessToken: string }>('/auth/login', { identifier, password });
+        setTokens(session);
+        const context = await api.get<{ data: TicContext }>('/me');
+        setUser(normalizeTicActor(context.data));
+      } catch {
+        const session = await actApi.post<AuthSession>('/auth/login', { identifier, password });
+        setTokens(session);
+        const context = await api.get<{ data: TicContext }>('/me');
+        setUser(normalizeUser(session.user, context.data));
+      }
     },
     register: async () => {
       throw new Error('Accounts are managed in ACT. Sign in with your existing ACT account.');

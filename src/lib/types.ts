@@ -118,7 +118,7 @@ export type DepartmentSnapshot = {
   entity: string | null;
 };
 export type ManagedUser = {
-  id: number;
+  id: string | number;
   actorId: string;
   email: string;
   name: string;
@@ -131,6 +131,7 @@ export type ManagedUser = {
   mustChangePassword: boolean;
   createdAt: string;
   updatedAt: string;
+  source?: "tic" | "act";
 };
 
 export type PaginationMeta = {

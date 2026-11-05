@@ -177,6 +177,18 @@ export function FormBuilder() {
         currentIndex === index ? { ...field, ...patch } : field,
       ),
     }));
+  const patchFieldValidation = (
+    index: number,
+    patch: Partial<FormField["validation"]>,
+  ) =>
+    setDraft((current) => ({
+      ...current,
+      fields: current.fields.map((field, currentIndex) =>
+        currentIndex === index
+          ? { ...field, validation: { ...field.validation, ...patch } }
+          : field,
+      ),
+    }));
   const addField = () =>
     setDraft((current) => ({
       ...current,
@@ -477,6 +489,110 @@ export function FormBuilder() {
                             })
                           }
                         />
+                      )}
+                      {["text", "textarea", "email"].includes(field.type) && (
+                        <fieldset className="validation-editor">
+                          <legend>Validation rules</legend>
+                          <label>
+                            Minimum length
+                            <input
+                              type="number"
+                              min="0"
+                              max="10000"
+                              value={field.validation.minLength ?? ""}
+                              onChange={(event) =>
+                                patchFieldValidation(index, {
+                                  minLength: event.target.value === "" ? undefined : event.target.valueAsNumber,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Maximum length
+                            <input
+                              type="number"
+                              min="1"
+                              max="10000"
+                              value={field.validation.maxLength ?? ""}
+                              onChange={(event) =>
+                                patchFieldValidation(index, {
+                                  maxLength: event.target.value === "" ? undefined : event.target.valueAsNumber,
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="validation-pattern">
+                            Pattern (regular expression)
+                            <input
+                              type="text"
+                              maxLength={300}
+                              placeholder="Example: ^ABC-[0-9]{4}$"
+                              value={field.validation.pattern ?? ""}
+                              onChange={(event) =>
+                                patchFieldValidation(index, { pattern: event.target.value || undefined })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Pattern flags
+                            <select
+                              value={field.validation.patternFlags ?? ""}
+                              disabled={!field.validation.pattern}
+                              onChange={(event) =>
+                                patchFieldValidation(index, { patternFlags: event.target.value || undefined })
+                              }
+                            >
+                              <option value="">Case-sensitive</option>
+                              <option value="i">Ignore case (i)</option>
+                              <option value="m">Multiline (m)</option>
+                              <option value="im">Ignore case + multiline</option>
+                            </select>
+                          </label>
+                          <label className="validation-message">
+                            Error message
+                            <input
+                              type="text"
+                              maxLength={300}
+                              placeholder="Explain the required format"
+                              value={field.validation.message ?? ""}
+                              onChange={(event) =>
+                                patchFieldValidation(index, { message: event.target.value || undefined })
+                              }
+                            />
+                          </label>
+                          <small className="validation-help">
+                            Rules are checked in the browser and enforced again by the API.
+                          </small>
+                        </fieldset>
+                      )}
+                      {field.type === "number" && (
+                        <fieldset className="validation-editor numeric-validation">
+                          <legend>Validation rules</legend>
+                          <label>
+                            Minimum value
+                            <input
+                              type="number"
+                              value={field.validation.min ?? ""}
+                              onChange={(event) =>
+                                patchFieldValidation(index, {
+                                  min: event.target.value === "" ? undefined : event.target.valueAsNumber,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Maximum value
+                            <input
+                              type="number"
+                              value={field.validation.max ?? ""}
+                              onChange={(event) =>
+                                patchFieldValidation(index, {
+                                  max: event.target.value === "" ? undefined : event.target.valueAsNumber,
+                                })
+                              }
+                            />
+                          </label>
+                        </fieldset>
                       )}
                     </article>
                   ))}

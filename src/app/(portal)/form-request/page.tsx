@@ -16,14 +16,43 @@ function completeEmail(value: string): string {
   return domain && !domain.includes('.') ? `${local}@${domain}.com` : normalized;
 }
 
-function Field({ field, value, setValue }: { field: FormField; value: unknown; setValue(value: unknown): void }) {
-  const common = { required: field.required };
-  if (field.type === 'textarea') return <label><span>{field.label}</span><small>{field.description}</small><textarea {...common} value={String(value || '')} onChange={(event) => setValue(event.target.value)} /></label>;
-  if (field.type === 'select') return <label><span>{field.label}</span><small>{field.description}</small><select {...common} value={String(value || '')} onChange={(event) => setValue(event.target.value)}><option value="">Select one</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select></label>;
-  if (field.type === 'radio') return <fieldset><legend>{field.label}</legend><small>{field.description}</small>{field.options.map((option) => <label className="radio" key={option}><input type="radio" name={field.id} checked={value === option} onChange={() => setValue(option)} />{option}</label>)}</fieldset>;
-  if (field.type === 'checkbox') return <label className="radio"><input type="checkbox" checked={Boolean(value)} onChange={(event) => setValue(event.target.checked)} />{field.label}</label>;
+function validateField(field: FormField, value: unknown): string {
+  const empty = value === undefined || value === null || value === '' || value === false;
+  if (field.required && empty) return `${field.label} is required`;
+  if (empty) return '';
+  const text = String(value);
+  if (field.type === 'email' && !/^\S+@\S+\.\S+$/.test(completeEmail(text))) return `${field.label} must be a valid email address`;
+  if ((field.type === 'select' || field.type === 'radio') && !field.options.includes(text)) return `${field.label} has an invalid selection`;
+  if (field.validation.minLength !== undefined && text.length < field.validation.minLength) return `${field.label} must have at least ${field.validation.minLength} characters`;
+  if (field.validation.maxLength !== undefined && text.length > field.validation.maxLength) return `${field.label} must not exceed ${field.validation.maxLength} characters`;
+  if (field.type === 'number') {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return `${field.label} must be a number`;
+    if (field.validation.min !== undefined && number < field.validation.min) return `${field.label} must be at least ${field.validation.min}`;
+    if (field.validation.max !== undefined && number > field.validation.max) return `${field.label} must not exceed ${field.validation.max}`;
+  }
+  if (field.validation.pattern) {
+    try {
+      if (!new RegExp(field.validation.pattern, field.validation.patternFlags).test(text)) return field.validation.message || `${field.label} has an invalid format`;
+    } catch {
+      return `${field.label} has an invalid validation rule. Please contact an administrator.`;
+    }
+  }
+  return '';
+}
+
+type FieldProps = { field: FormField; value: unknown; error?: string; setValue(value: unknown): void; onBlur(): void };
+
+function Field({ field, value, error, setValue, onBlur }: FieldProps) {
+  const errorId = `${field.id}-error`;
+  const describedBy = error ? errorId : undefined;
+  const feedback = error ? <small className="field-error" id={errorId} role="alert">{error}</small> : null;
+  if (field.type === 'textarea') return <label><span>{field.label}</span><small>{field.description}</small><textarea required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} minLength={field.validation.minLength} maxLength={field.validation.maxLength} value={String(value || '')} onBlur={onBlur} onChange={(event) => setValue(event.target.value)} />{feedback}</label>;
+  if (field.type === 'select') return <label><span>{field.label}</span><small>{field.description}</small><select required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} value={String(value || '')} onBlur={onBlur} onChange={(event) => setValue(event.target.value)}><option value="">Select one</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select>{feedback}</label>;
+  if (field.type === 'radio') return <fieldset aria-invalid={Boolean(error)} aria-describedby={describedBy} onBlur={onBlur}><legend>{field.label}</legend><small>{field.description}</small>{field.options.map((option) => <label className="radio" key={option}><input required={field.required} type="radio" name={field.id} checked={value === option} onChange={() => setValue(option)} />{option}</label>)}{feedback}</fieldset>;
+  if (field.type === 'checkbox') return <label className="radio"><input required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} type="checkbox" checked={Boolean(value)} onBlur={onBlur} onChange={(event) => setValue(event.target.checked)} />{field.label}{feedback}</label>;
   const isFile = field.type === 'image' || field.type === 'pdf';
-  return <label><span>{field.label}</span><small>{field.description}</small><input {...common} type={isFile ? 'file' : field.type} value={isFile ? undefined : String(value || '')} onChange={(event) => setValue(event.target.value)} onBlur={(event) => { if (field.type === 'email') setValue(completeEmail(event.target.value)); }} /></label>;
+  return <label><span>{field.label}</span><small>{field.description}</small><input required={field.required} aria-invalid={Boolean(error)} aria-describedby={describedBy} minLength={field.validation.minLength} maxLength={field.validation.maxLength} min={field.validation.min} max={field.validation.max} pattern={field.validation.patternFlags ? undefined : field.validation.pattern} type={isFile ? 'file' : field.type} value={isFile ? undefined : String(value || '')} onChange={(event) => setValue(event.target.value)} onBlur={(event) => { if (field.type === 'email') setValue(completeEmail(event.target.value)); onBlur(); }} />{feedback}</label>;
 }
 
 export default function FormRequestPage() {
@@ -32,6 +61,7 @@ export default function FormRequestPage() {
   const [forms, setForms] = useState<RequestForm[]>([]);
   const [formId, setFormId] = useState('');
   const [responses, setResponses] = useState<Record<string, unknown>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [departmentId, setDepartmentId] = useState('');
   const [error, setError] = useState('');
@@ -47,10 +77,20 @@ export default function FormRequestPage() {
 
   const selected = useMemo(() => forms.find((form) => form.id === formId), [forms, formId]);
   const groups = useMemo(() => [...new Set(forms.map((form) => form.groupName))], [forms]);
+  const setFieldValue = (field: FormField, value: unknown) => {
+    setResponses((current) => ({ ...current, [field.id]: value }));
+    setFieldErrors((current) => ({ ...current, [field.id]: '' }));
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!selected || !user) return;
+    const validationErrors = Object.fromEntries(selected.fields.map((field) => [field.id, validateField(field, responses[field.id])] as const).filter(([, message]) => Boolean(message)));
+    setFieldErrors(validationErrors);
+    if (!departmentId || Object.keys(validationErrors).length > 0) {
+      setError('Please complete the department and correct the highlighted fields before submitting.');
+      return;
+    }
     setSaving(true);
     setError('');
     setEmailWarning('');
@@ -58,11 +98,7 @@ export default function FormRequestPage() {
       const result = await api.post<{ data: { referenceNumber: string } }>('/requests', { formId, departmentId, responses });
       setSuccess(result.data.referenceNumber);
       try {
-        await sendEmail({
-          to: user.email,
-          subject: `TIC request ${result.data.referenceNumber} received`,
-          message: `Your ${selected.name} request was submitted successfully. Reference: ${result.data.referenceNumber}.`,
-        });
+        await sendEmail({ to: user.email, subject: `TIC request ${result.data.referenceNumber} received`, message: `Your ${selected.name} request was submitted successfully. Reference: ${result.data.referenceNumber}.` });
       } catch (reason) {
         setEmailWarning(reason instanceof Error ? `Your request was submitted, but ${reason.message.toLowerCase()}.` : 'Your request was submitted, but its confirmation email could not be sent.');
       }
@@ -75,5 +111,5 @@ export default function FormRequestPage() {
 
   if (success) return <section className="success-card"><span><IconCheck size={32} /></span><p className="eyebrow">Request received</p><h1>You’re all set.</h1><p>Keep this reference number for your records.</p><strong>{success}</strong>{emailWarning && <div className="notice" role="status">{emailWarning}</div>}<button className="primary" onClick={() => router.push('/dashboard')}>View my requests</button></section>;
 
-  return <><header className="page-header"><div><p className="eyebrow">Employee Services</p><h1>Start a new request</h1><p>Choose a service and share the details the team needs.</p></div></header>{error && <div className="alert" role="alert">{error}</div>}<div className="request-composer"><aside><h2>Services</h2>{groups.map((group) => <div key={group}><h3>{group}</h3>{forms.filter((form) => form.groupName === group).map((form) => <button type="button" className={form.id === formId ? 'selected' : ''} key={form.id} onClick={() => { setFormId(form.id); setResponses({}); }}><IconFileText size={18} /><span>{form.name}</span><IconChevronRight size={16} /></button>)}</div>)}</aside><section className="surface form-surface">{selected ? <form onSubmit={submit}><p className="eyebrow">{selected.groupName}</p><h2>{selected.name}</h2><p>{selected.description}</p><label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label><div className="dynamic-fields">{selected.fields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} setValue={(value) => setResponses({ ...responses, [field.id]: value })} />)}</div><button className="primary" disabled={saving}>{saving ? 'Submitting…' : 'Submit request'}</button></form> : <div className="empty"><h3>No request forms available</h3></div>}</section></div></>;
+  return <><header className="page-header"><div><p className="eyebrow">Employee Services</p><h1>Start a new request</h1><p>Choose a service and share the details the team needs.</p></div></header>{error && <div className="alert" role="alert">{error}</div>}<div className="request-composer"><aside><h2>Services</h2>{groups.map((group) => <div key={group}><h3>{group}</h3>{forms.filter((form) => form.groupName === group).map((form) => <button type="button" className={form.id === formId ? 'selected' : ''} key={form.id} onClick={() => { setFormId(form.id); setResponses({}); setFieldErrors({}); setError(''); }}><IconFileText size={18} /><span>{form.name}</span><IconChevronRight size={16} /></button>)}</div>)}</aside><section className="surface form-surface">{selected ? <form noValidate onSubmit={submit}><p className="eyebrow">{selected.groupName}</p><h2>{selected.name}</h2><p>{selected.description}</p><label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label><div className="dynamic-fields">{selected.fields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div><button className="primary" disabled={saving}>{saving ? 'Submitting…' : 'Submit request'}</button></form> : <div className="empty"><h3>No request forms available</h3></div>}</section></div></>;
 }

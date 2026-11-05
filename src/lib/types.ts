@@ -36,7 +36,15 @@ export type FormField = {
   type: FieldType;
   required: boolean;
   options: string[];
-  validation: Record<string, string | number | string[]>;
+  validation: {
+    minLength?: number;
+    maxLength?: number;
+    min?: number;
+    max?: number;
+    pattern?: string;
+    patternFlags?: string;
+    message?: string;
+  };
 };
 export type WorkflowStep = {
   id: string;

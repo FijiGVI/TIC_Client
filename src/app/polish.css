@@ -63,6 +63,27 @@ body{background:#f7f8fa}.portal-main{max-width:1600px;width:100%;margin-inline:a
 @container (max-width:1320px){.request-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.request-filters .secondary{width:100%}}
 @container (max-width:620px){.request-filters{grid-template-columns:1fr}}
 
+/* Mobile uses a dismissible side drawer instead of bottom navigation. */
+.sidebar-backdrop,.mobile-menu-toggle{display:none}
+@media(max-width:720px){
+  body{padding-bottom:0}
+  .portal{padding-bottom:0}
+  .sidebar{position:fixed;z-index:50;top:0;bottom:auto;left:0;display:flex;width:min(310px,86vw);height:100dvh;padding:24px 16px calc(20px + env(safe-area-inset-bottom));transform:translateX(-105%);transition:transform .22s ease;box-shadow:18px 0 40px rgb(8 28 43 / 24%)}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .sidebar>.brand{display:flex;justify-content:flex-start;padding:0 10px 26px}
+  .sidebar>.brand div{display:grid;font-size:inherit}
+  .sidebar nav{display:grid;height:auto;align-items:stretch;justify-content:stretch;overflow-y:auto}
+  .sidebar nav a,.sidebar nav a:not(.active){display:flex;min-width:0;max-width:none;justify-content:flex-start;gap:11px;padding:12px;font-size:13px;white-space:normal}
+  .sidebar nav a.active{box-shadow:inset 3px 0 #26b8a7}
+  .sidebar nav a.active:after{top:auto;right:11px}
+  .sidebar-user{display:grid;grid-template-columns:36px minmax(0,1fr) 36px;justify-items:stretch}
+  .sidebar-user>div{display:grid}.sidebar-user>button:not(.sidebar-logout){display:none}.sidebar-user .sidebar-logout{display:grid;width:36px;height:36px;place-items:center;padding:0}.sidebar-logout span{display:none}
+  .sidebar-backdrop{position:fixed;z-index:40;inset:0;display:block;border:0;background:rgb(6 20 31 / 52%)}
+  .mobile-header{display:grid;grid-template-columns:40px 1fr auto}
+  .mobile-menu-toggle{display:grid;width:40px;height:40px;place-items:center;border:1px solid var(--line);border-radius:9px;background:#fff;color:#344054}
+  .mobile-brand{justify-self:start}
+}
+
 /* Keep narrow-screen overrides last so tablet builder rules cannot win the cascade. */
 @media(max-width:720px){
   .builder-responsive>aside{display:grid;grid-template-columns:1fr;overflow:visible}

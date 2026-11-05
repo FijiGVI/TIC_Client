@@ -178,6 +178,16 @@ input:hover, select:hover, textarea:hover { border-color: #aebdca; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 
+@media(max-width:720px){
+  body{padding-bottom:0}.portal{padding-bottom:0}
+  .portal>.sidebar{position:fixed;z-index:50;top:0;bottom:auto;left:0;display:flex;width:min(310px,86vw);height:100dvh;padding:24px 16px calc(20px + env(safe-area-inset-bottom));transform:translateX(-105%);transition:transform .22s ease}
+  .portal>.sidebar.mobile-open{transform:translateX(0)}
+  .portal>.sidebar>.brand{display:flex;justify-content:flex-start;padding:0 10px 26px}.portal>.sidebar>.brand div{display:grid;font-size:inherit}
+  .portal>.sidebar nav{display:grid;height:auto;align-items:stretch;justify-content:stretch;overflow-y:auto}.portal>.sidebar nav a,.portal>.sidebar nav a:not(.active){display:flex;min-width:0;max-width:none;justify-content:flex-start;gap:11px;padding:12px;font-size:13px;white-space:normal}
+  .portal>.sidebar .sidebar-user{display:grid;grid-template-columns:36px minmax(0,1fr) 36px}.portal>.sidebar .sidebar-user>div{display:grid}.portal>.sidebar .sidebar-user>button:not(.sidebar-logout){display:none}
+  .sidebar-backdrop{position:fixed;z-index:40;inset:0;display:block;border:0;background:rgb(6 20 31 / 52%)}.mobile-header{display:grid;grid-template-columns:40px 1fr auto}.mobile-menu-toggle{display:grid;width:40px;height:40px;place-items:center;border:1px solid var(--line);border-radius:9px;background:#fff;color:#344054}.mobile-brand{justify-self:start}
+}
+
 @container (max-width: 850px) {
   .field-editor.improved .field-config-row {
     grid-template-columns: 28px minmax(0, 1fr) minmax(140px, .72fr) 36px;

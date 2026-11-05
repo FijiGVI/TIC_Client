@@ -7,6 +7,8 @@ import {
   IconLogout,
   IconUsers,
   IconDatabaseImport,
+  IconMenu2,
+  IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -21,6 +23,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [navigationOpen, setNavigationOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
@@ -62,14 +65,14 @@ export function PortalShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="portal">
-      <aside className="sidebar">
+      <aside className={`sidebar ${navigationOpen ? 'mobile-open' : ''}`} id="primary-sidebar">
         <div className="brand">
           <span>T</span>
           <div><strong>TIC</strong><small>Employee Services</small></div>
         </div>
         <nav aria-label="Primary navigation">
           {links.map(({ href, label, icon: Icon }) => (
-            <Link className={pathname === href ? 'active' : ''} href={href} key={href} aria-current={pathname === href ? 'page' : undefined}>
+            <Link className={pathname === href ? 'active' : ''} href={href} key={href} aria-current={pathname === href ? 'page' : undefined} onClick={() => setNavigationOpen(false)}>
               <Icon size={20} />{label}
             </Link>
           ))}
@@ -81,7 +84,9 @@ export function PortalShell({ children }: { children: ReactNode }) {
           <button className="sidebar-logout" onClick={() => void logout()}><IconLogout size={18} /><span>Log out</span></button>
         </div>
       </aside>
+      {navigationOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
       <header className="mobile-header">
+        <button className="mobile-menu-toggle" type="button" aria-label={navigationOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={navigationOpen} aria-controls="primary-sidebar" onClick={() => setNavigationOpen((open) => !open)}>{navigationOpen ? <IconX size={21} /> : <IconMenu2 size={21} />}</button>
         <Link className="mobile-brand" href="/dashboard" aria-label="TIC home"><span>T</span><strong>TIC</strong></Link>
         <div className="mobile-account"><span>{user.name}</span><button type="button" onClick={() => void logout()} aria-label="Log out"><IconLogout size={18} /></button></div>
       </header>

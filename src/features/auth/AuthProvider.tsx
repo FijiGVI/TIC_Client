@@ -7,7 +7,8 @@ import type { Role, TicPermission, User } from '@/lib/types';
 
 type ActUser = { id: number; email: string; firstName?: string | null; lastName?: string | null; role: string; userRole?: { name?: string | null } | null; shouldChangePassword?: boolean };
 type AuthSession = { accessToken: string; refreshToken?: string; user: ActUser };
-type TicContext = { actor: { role: Role }; permissions: TicPermission[] };
+type MicrosoftRequesterSession = { accessToken: string; identity: { email: string; name: string; linkedUserId: number | null } };
+type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[] };
 type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<void>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string): Promise<void>; logout(): Promise<void>; refreshUser(): Promise<void> };
 
 const defaultPermissions: Record<Role, TicPermission[]> = {
@@ -38,6 +39,21 @@ function normalizeUser(user: ActUser, context?: TicContext): User {
   };
 }
 
+function normalizeTicActor(context: TicContext): User {
+  return {
+    id: context.actor.id,
+    email: context.actor.email,
+    name: context.actor.name || context.actor.email,
+    role: context.actor.role,
+    permissions: context.permissions,
+    mustChangePassword: false,
+  };
+}
+
+function isActAuthSession(session: AuthSession | MicrosoftRequesterSession): session is AuthSession {
+  return 'user' in session;
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -46,11 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   const refreshUser = useCallback(async () => {
-    const [actResponse, ticResponse] = await Promise.all([
-      actApi.get<{ user: ActUser }>('/auth/me'),
-      api.get<{ data: TicContext }>('/me'),
-    ]);
-    setUser(normalizeUser(actResponse.user, ticResponse.data));
+    const ticResponse = await api.get<{ data: TicContext }>('/me');
+    setUser(normalizeTicActor(ticResponse.data));
   }, []);
 
   useEffect(() => {
@@ -78,10 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Accounts are managed in ACT. Sign in with your existing ACT account.');
     },
     loginWithMicrosoft: async (idToken) => {
-      const session = await actApi.post<AuthSession>('/auth/microsoft', { idToken });
+      const session = await actApi.post<AuthSession | MicrosoftRequesterSession>('/auth/microsoft', { idToken });
       setTokens(session);
       const context = await api.get<{ data: TicContext }>('/me');
-      setUser(normalizeUser(session.user, context.data));
+      setUser(isActAuthSession(session) ? normalizeUser(session.user, context.data) : normalizeTicActor(context.data));
     },
     logout: async () => {
       await logoutSession().catch(() => setTokens(null));

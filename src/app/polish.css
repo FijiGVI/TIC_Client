@@ -57,6 +57,12 @@ body{background:#f7f8fa}.portal-main{max-width:1600px;width:100%;margin-inline:a
 @media(max-width:1100px){.request-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.request-filters .secondary{width:100%}}
 @media(max-width:720px){.page-header{margin-bottom:22px}.page-header .primary{width:100%}.request-toolbar{align-items:stretch}.request-toolbar .search{width:100%;margin-left:0}.request-toolbar .segmented{width:100%}.request-toolbar .segmented button{flex:1}.request-filters{grid-template-columns:1fr}.mapping-grid{grid-template-columns:1fr;padding:16px}.sharepoint-table{padding:10px;background:#f7f8fa}.sharepoint-row.heading{display:none}.sharepoint-row:not(.heading){min-width:0;grid-template-columns:72px minmax(0,1fr);gap:7px 12px;margin-bottom:10px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fff}.sharepoint-row:not(.heading)>*:nth-child(n+3){grid-column:2}.sharepoint-row:not(.heading)>*:nth-child(3){font-weight:700}.builder-responsive>aside{padding:14px}.builder-responsive>aside>button{padding:14px;border:1px solid var(--line);background:#fff}.builder-responsive>aside>.pagination{margin:4px 0 0}.pagination{width:100%}}
 
+/* Native date-time controls require container-aware tracks to prevent overflow. */
+.request-surface{container-type:inline-size}
+.request-filters input,.request-filters select{width:100%;min-width:0;max-width:100%}
+@container (max-width:1320px){.request-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.request-filters .secondary{width:100%}}
+@container (max-width:620px){.request-filters{grid-template-columns:1fr}}
+
 /* Keep narrow-screen overrides last so tablet builder rules cannot win the cascade. */
 @media(max-width:720px){
   .builder-responsive>aside{display:grid;grid-template-columns:1fr;overflow:visible}

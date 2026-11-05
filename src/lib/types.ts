@@ -89,6 +89,8 @@ export type ServiceRequest = {
   requesterActorId: string;
   requesterSnapshot: TicActor;
   formId: string;
+  departmentId: string | null;
+  departmentSnapshot: DepartmentSnapshot | null;
   formSnapshot: RequestForm;
   responses: Record<string, unknown>;
   status: string;
@@ -100,6 +102,20 @@ export type ServiceRequest = {
   createdAt: string;
   updatedAt: string;
   events?: RequestEvent[];
+};
+export type DepartmentOption = {
+  id: string;
+  sharepointItemId: string;
+  title: string | null;
+  businessUnit: string;
+  entity: string | null;
+};
+export type DepartmentSnapshot = {
+  id: string;
+  sharepointItemId: string;
+  code: string | null;
+  name: string;
+  entity: string | null;
 };
 export type ManagedUser = {
   id: number;

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { api } from '@/lib/api';
 import { sendEmail } from '@/lib/email';
-import type { FormField, RequestForm } from '@/lib/types';
+import type { DepartmentOption, FormField, RequestForm } from '@/lib/types';
 
 function completeEmail(value: string): string {
   const normalized = value.trim();
@@ -32,14 +32,16 @@ export default function FormRequestPage() {
   const [forms, setForms] = useState<RequestForm[]>([]);
   const [formId, setFormId] = useState('');
   const [responses, setResponses] = useState<Record<string, unknown>>({});
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [departmentId, setDepartmentId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [emailWarning, setEmailWarning] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get<{ data: RequestForm[] }>('/forms/public')
-      .then((response) => { setForms(response.data); setFormId(response.data[0]?.id || ''); })
+    Promise.all([api.get<{ data: RequestForm[] }>('/forms/public'), api.get<{ data: DepartmentOption[] }>('/departments')])
+      .then(([formsResponse, departmentsResponse]) => { setForms(formsResponse.data); setFormId(formsResponse.data[0]?.id || ''); setDepartments(departmentsResponse.data); })
       .catch((reason: Error) => setError(reason.message));
   }, []);
 
@@ -53,7 +55,7 @@ export default function FormRequestPage() {
     setError('');
     setEmailWarning('');
     try {
-      const result = await api.post<{ data: { referenceNumber: string } }>('/requests', { formId, responses });
+      const result = await api.post<{ data: { referenceNumber: string } }>('/requests', { formId, departmentId, responses });
       setSuccess(result.data.referenceNumber);
       try {
         await sendEmail({
@@ -73,5 +75,5 @@ export default function FormRequestPage() {
 
   if (success) return <section className="success-card"><span><IconCheck size={32} /></span><p className="eyebrow">Request received</p><h1>You’re all set.</h1><p>Keep this reference number for your records.</p><strong>{success}</strong>{emailWarning && <div className="notice" role="status">{emailWarning}</div>}<button className="primary" onClick={() => router.push('/dashboard')}>View my requests</button></section>;
 
-  return <><header className="page-header"><div><p className="eyebrow">Employee Services</p><h1>Start a new request</h1><p>Choose a service and share the details the team needs.</p></div></header>{error && <div className="alert" role="alert">{error}</div>}<div className="request-composer"><aside><h2>Services</h2>{groups.map((group) => <div key={group}><h3>{group}</h3>{forms.filter((form) => form.groupName === group).map((form) => <button type="button" className={form.id === formId ? 'selected' : ''} key={form.id} onClick={() => { setFormId(form.id); setResponses({}); }}><IconFileText size={18} /><span>{form.name}</span><IconChevronRight size={16} /></button>)}</div>)}</aside><section className="surface form-surface">{selected ? <form onSubmit={submit}><p className="eyebrow">{selected.groupName}</p><h2>{selected.name}</h2><p>{selected.description}</p><div className="dynamic-fields">{selected.fields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} setValue={(value) => setResponses({ ...responses, [field.id]: value })} />)}</div><button className="primary" disabled={saving}>{saving ? 'Submitting…' : 'Submit request'}</button></form> : <div className="empty"><h3>No request forms available</h3></div>}</section></div></>;
+  return <><header className="page-header"><div><p className="eyebrow">Employee Services</p><h1>Start a new request</h1><p>Choose a service and share the details the team needs.</p></div></header>{error && <div className="alert" role="alert">{error}</div>}<div className="request-composer"><aside><h2>Services</h2>{groups.map((group) => <div key={group}><h3>{group}</h3>{forms.filter((form) => form.groupName === group).map((form) => <button type="button" className={form.id === formId ? 'selected' : ''} key={form.id} onClick={() => { setFormId(form.id); setResponses({}); }}><IconFileText size={18} /><span>{form.name}</span><IconChevronRight size={16} /></button>)}</div>)}</aside><section className="surface form-surface">{selected ? <form onSubmit={submit}><p className="eyebrow">{selected.groupName}</p><h2>{selected.name}</h2><p>{selected.description}</p><label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label><div className="dynamic-fields">{selected.fields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} setValue={(value) => setResponses({ ...responses, [field.id]: value })} />)}</div><button className="primary" disabled={saving}>{saving ? 'Submitting…' : 'Submit request'}</button></form> : <div className="empty"><h3>No request forms available</h3></div>}</section></div></>;
 }

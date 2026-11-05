@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/Pagination";
 import { api } from "@/lib/api";
 import { sendEmail } from "@/lib/email";
-import type { PaginationMeta, ServiceRequest } from "@/lib/types";
+import type { DepartmentOption, PaginationMeta, ServiceRequest } from "@/lib/types";
 
 type Filter = "all" | "open" | "completed";
 const statusLabel = (status: string) => status.replaceAll("_", " ");
@@ -29,6 +29,10 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
   const [summary, setSummary] = useState({ total: 0, open: 0, completed: 0 });
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [departmentId, setDepartmentId] = useState("");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +41,9 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
       const parameters = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (filter !== "all") parameters.set("status", filter);
       if (query.trim()) parameters.set("search", query.trim());
+      if (managed && departmentId) parameters.set("departmentId", departmentId);
+      if (managed && createdFrom) parameters.set("createdFrom", new Date(createdFrom).toISOString());
+      if (managed && createdTo) parameters.set("createdTo", new Date(createdTo).toISOString());
       const response = await api.get<{
         data: ServiceRequest[];
         meta: PaginationMeta;
@@ -52,7 +59,13 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [filter, page, query]);
+  }, [createdFrom, createdTo, departmentId, filter, managed, page, query]);
+
+  useEffect(() => {
+    if (!managed) return;
+    const timer = window.setTimeout(() => void api.get<{ data: DepartmentOption[] }>("/departments").then((response) => setDepartments(response.data)).catch(() => undefined), 0);
+    return () => window.clearTimeout(timer);
+  }, [managed]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), query ? 300 : 0);
@@ -166,12 +179,14 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
             />
           </label>
         </div>
+        {managed && <div className="request-filters"><label>Department<select value={departmentId} onChange={(event) => { setDepartmentId(event.target.value); setPage(1); }}><option value="">All departments</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ""}{department.businessUnit}</option>)}</select></label><label>Submitted from<input type="datetime-local" value={createdFrom} onChange={(event) => { setCreatedFrom(event.target.value); setPage(1); }} /></label><label>Submitted until<input type="datetime-local" value={createdTo} min={createdFrom} onChange={(event) => { setCreatedTo(event.target.value); setPage(1); }} /></label><button className="secondary" type="button" disabled={!departmentId && !createdFrom && !createdTo} onClick={() => { setDepartmentId(""); setCreatedFrom(""); setCreatedTo(""); setPage(1); }}>Clear filters</button></div>}
 
         <div className="request-table">
           <div className={`request-row heading ${managed ? "managed" : ""}`}>
             <span>Reference</span>
             <span>Request</span>
             {managed && <span>Requester</span>}
+            {managed && <span>Department</span>}
             <span>Status</span>
             <span>Submitted</span>
             <span />
@@ -198,6 +213,7 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
                     {request.requesterSnapshot.name || "Not available"}
                   </span>
                 )}
+                {managed && <span>{request.departmentSnapshot?.code || request.departmentSnapshot?.name || "Not available"}</span>}
                 <span>
                   <em className={`status ${request.status}`}>
                     {statusLabel(request.status)}
@@ -252,6 +268,7 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
             </div>
             <h3>Request details</h3>
             <dl>
+              {selected.departmentSnapshot && <div><dt>Department</dt><dd>{selected.departmentSnapshot.code ? `${selected.departmentSnapshot.code} — ` : ""}{selected.departmentSnapshot.name}</dd></div>}
               {Object.entries(selected.responses).map(([key, value]) => (
                 <div key={key}>
                   <dt>

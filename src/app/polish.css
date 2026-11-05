@@ -42,6 +42,12 @@ body{background:#f7f8fa}.portal-main{max-width:1600px;width:100%;margin-inline:a
   .modal-actions{display:grid;grid-template-columns:1fr 1fr}
 }
 
+.request-row.managed{grid-template-columns:1.05fr 1.35fr 1.05fr .75fr .8fr 1fr 24px}
+.request-filters{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) minmax(190px,1fr) auto;align-items:end;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);background:#fafbfc}
+.request-filters label{margin:0}.request-filters select,.request-filters input{min-height:40px}.request-filters .secondary{min-height:40px;margin-bottom:0}
+@media(max-width:900px){.request-filters{grid-template-columns:1fr 1fr}.request-filters label:first-child{grid-column:1/-1}}
+@media(max-width:720px){.request-filters{grid-template-columns:1fr;padding:14px}.request-filters label:first-child{grid-column:auto}.request-row.managed:not(.heading){grid-template-columns:minmax(0,1fr) auto}}
+
 /* Keep narrow-screen overrides last so tablet builder rules cannot win the cascade. */
 @media(max-width:720px){
   .builder-responsive>aside{display:grid;grid-template-columns:1fr;overflow:visible}

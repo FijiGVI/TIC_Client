@@ -6,6 +6,7 @@ import {
   IconForms,
   IconLogout,
   IconUsers,
+  IconDatabaseImport,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -56,6 +57,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
     },
     { href: '/admin/forms', label: 'Form builder', icon: IconForms, show: user.permissions.includes('forms.manage') },
     { href: '/admin/users', label: 'Users & roles', icon: IconUsers, show: user.permissions.includes('users.manage') || user.permissions.includes('roles.manage') },
+    { href: '/admin/sharepoint', label: 'SharePoint data', icon: IconDatabaseImport, show: user.permissions.includes('forms.manage') },
   ].filter((link) => link.show);
 
   return (

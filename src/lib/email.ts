@@ -1,6 +1,8 @@
 import axios, { AxiosError } from 'axios';
 
-const AIMS_EMAIL_URL = process.env.NEXT_PUBLIC_AIMS_EMAIL_URL || 'https://aim-api-staging.globalvisioninc.com.ph/apis/sends/mail';
+// This is intentionally a public browser endpoint. It contains no credential
+// and is expected to be visible in the browser's Network panel.
+export const AIMS_EMAIL_URL = 'https://aim-api-staging.globalvisioninc.com.ph/apis/sends/mail';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type SendEmailPayload = { to: string; subject: string; message: string };

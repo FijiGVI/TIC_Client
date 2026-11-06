@@ -105,16 +105,27 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
               {error && <div className="alert" role="alert">{error}</div>}
               <div className="modal-request-form">
                 {selected ? (
-                  <form noValidate onSubmit={submit}>
+                  <form id="new-request-form" noValidate onSubmit={submit}>
                     <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { setFormId(event.target.value); setResponses({}); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
                     <div className="selected-service-summary"><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p></div>
                     <label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
                     <div className="dynamic-fields">{requesterFields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div>
-                    <button className="primary" disabled={saving}>{saving ? 'Submitting…' : 'Submit request'}</button>
                   </form>
                 ) : <div className="empty"><h3>No request forms available</h3></div>}
               </div>
             </div>
+            {selected && (
+              <footer className="modal-footer">
+                <button
+                  className="primary"
+                  type="submit"
+                  form="new-request-form"
+                  disabled={saving}
+                >
+                  {saving ? 'Submitting…' : 'Submit request'}
+                </button>
+              </footer>
+            )}
           </>
         )}
       </section>

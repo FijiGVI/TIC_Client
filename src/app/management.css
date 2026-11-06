@@ -26,6 +26,23 @@
 .validation-help { color: var(--muted); }
 .field-error { display: block; margin-top: .4rem; color: var(--danger); font-weight: 700; }
 .dynamic-fields [aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px rgb(196 45 38 / 10%); }
+.new-request-modal { width: min(1120px, 100%); max-height: min(92dvh, 920px); padding: 0; }
+.new-request-modal > .modal-close { z-index: 2; top: 18px; right: 18px; display: grid; width: 40px; height: 40px; place-items: center; border-radius: 50%; background: white; }
+.new-request-modal > .modal-close:hover { background: #f1f4f7; }
+.modal-heading { padding: 28px 72px 20px 28px; border-bottom: 1px solid var(--line); }
+.modal-heading h2 { margin-bottom: .35rem; }
+.modal-heading p:last-child { margin: 0; color: var(--muted); }
+.new-request-modal > .alert { margin: 18px 28px 0; }
+.modal-composer { grid-template-columns: 260px minmax(0, 1fr); gap: 0; }
+.modal-composer > aside { align-self: stretch; padding: 18px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: #f8fafc; box-shadow: none; }
+.modal-composer > aside h3 { margin: 0 10px 12px; }
+.modal-composer > aside h4 { margin: 20px 10px 7px; color: var(--muted); font-size: .68rem; text-transform: uppercase; }
+.modal-request-form { min-width: 0; padding: 28px; }
+.modal-request-form > form { max-width: 760px; }
+.modal-request-form > form > p:not(.eyebrow) { color: var(--muted); }
+.modal-success { display: grid; min-height: 440px; place-items: center; align-content: center; padding: 48px 24px; text-align: center; }
+.modal-success > span { display: grid; width: 60px; height: 60px; place-items: center; margin-bottom: 18px; border-radius: 50%; background: #dff5f1; color: #078174; }
+.modal-success > strong { margin: 10px 0 26px; padding: 10px 16px; border-radius: 7px; background: #f2f4f7; letter-spacing: .05em; }
 .role-guidance { display: flex; align-items: flex-start; gap: .75rem; margin-bottom: 1.25rem; }
 .role-guidance div { display: grid; gap: .2rem; }
 .role-guidance span { color: var(--muted); }
@@ -51,4 +68,4 @@
 .modal label { display: grid; gap: .5rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1rem; }
 @media (max-width: 1050px) { .permission-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .role-editor-grid { grid-template-columns: 1fr; } .field-row { grid-template-columns: auto minmax(0, 1fr); } .field-row > input, .field-row > select { min-width: 0; width: 100%; } }
-@media (max-width: 700px) { .permission-grid { grid-template-columns: 1fr; } .role-editor-card > header, .role-editor-card > footer { align-items: stretch; flex-direction: column; } .role-editor-card > footer button { width: 100%; } .builder.builder-responsive { grid-template-columns: 1fr; } .builder.builder-responsive > aside { max-height: 240px; overflow: auto; } .form-grid, .validation-editor { grid-template-columns: 1fr !important; } .form-grid .wide, .validation-editor .validation-pattern, .validation-editor .validation-message, .validation-editor .validation-help { grid-column: auto !important; } .editor-actions, .save-bar { align-items: stretch; flex-direction: column; } .audience { flex-direction: column; } }
+@media (max-width: 700px) { .permission-grid { grid-template-columns: 1fr; } .new-request-modal { width: 100%; max-height: 96dvh; border-radius: 18px 18px 0 0; } .modal-heading { padding: 24px 64px 18px 18px; } .modal-composer { display: block; } .modal-composer > aside { display: flex; gap: 8px; padding: 12px 18px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); } .modal-composer > aside h3, .modal-composer > aside h4 { display: none; } .modal-composer > aside > div { display: flex; gap: 8px; } .modal-composer > aside button { min-width: 180px; border: 1px solid var(--line); background: white; } .modal-request-form { padding: 22px 18px; } .permission-grid { grid-template-columns: 1fr; } .role-editor-card > header, .role-editor-card > footer { align-items: stretch; flex-direction: column; } .role-editor-card > footer button { width: 100%; } .builder.builder-responsive { grid-template-columns: 1fr; } .builder.builder-responsive > aside { max-height: 240px; overflow: auto; } .form-grid, .validation-editor { grid-template-columns: 1fr !important; } .form-grid .wide, .validation-editor .validation-pattern, .validation-editor .validation-message, .validation-editor .validation-help { grid-column: auto !important; } .editor-actions, .save-bar { align-items: stretch; flex-direction: column; } .audience { flex-direction: column; } }

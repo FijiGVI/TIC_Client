@@ -2,12 +2,12 @@
 
 import {
   IconClipboardList,
-  IconFilePlus,
   IconForms,
   IconLogout,
   IconUsers,
   IconDatabaseImport,
   IconMenu2,
+  IconLayoutDashboard,
   IconShieldLock,
   IconX,
 } from '@tabler/icons-react';
@@ -51,8 +51,8 @@ export function PortalShell({ children }: { children: ReactNode }) {
   }
 
   const links = [
-    { href: '/dashboard', label: 'My requests', icon: IconClipboardList, show: true },
-    { href: '/form-request', label: 'New request', icon: IconFilePlus, show: user.permissions.includes('requests.create') },
+    { href: '/dashboard', label: 'Dashboard', icon: IconLayoutDashboard, show: true },
+    { href: '/requests', label: 'My requests', icon: IconClipboardList, show: user.permissions.includes('requests.read.own') || user.permissions.includes('requests.create') },
     {
       href: '/service-requests',
       label: 'Manage requests',

@@ -7,9 +7,10 @@ import {
   IconRefresh,
   IconSearch,
 } from "@tabler/icons-react";
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { NewRequestModal } from "@/components/NewRequestModal";
 import { Pagination } from "@/components/Pagination";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { api } from "@/lib/api";
 import type { DepartmentOption, PaginationMeta, ServiceRequest } from "@/lib/types";
 
@@ -17,7 +18,9 @@ type Filter = "all" | "open" | "completed";
 const statusLabel = (status: string) => status.replaceAll("_", " ");
 const initialMeta: PaginationMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
-export function RequestList({ managed = false }: { managed?: boolean }) {
+export function RequestList({ managed = false, allowCreate = false, initialCreateOpen = false }: { managed?: boolean; allowCreate?: boolean; initialCreateOpen?: boolean }) {
+  const { user } = useAuth();
+  const canCreate = allowCreate && Boolean(user?.permissions.includes("requests.create"));
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [selected, setSelected] = useState<ServiceRequest | null>(null);
   const [query, setQuery] = useState("");
@@ -32,6 +35,7 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
   const [departmentId, setDepartmentId] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
+  const [createOpen, setCreateOpen] = useState(initialCreateOpen && canCreate);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,11 +115,11 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
           >
             <IconRefresh size={18} />
           </button>
-          {!managed && (
-            <Link className="primary" href="/form-request">
+          {canCreate && (
+            <button className="primary" type="button" onClick={() => setCreateOpen(true)}>
               <IconFilePlus size={18} />
               New request
-            </Link>
+            </button>
           )}
         </div>
       </header>
@@ -308,6 +312,7 @@ export function RequestList({ managed = false }: { managed?: boolean }) {
           </section>
         </div>
       )}
+      {createOpen && <NewRequestModal onClose={() => setCreateOpen(false)} onSubmitted={() => void load()} />}
     </>
   );
 }

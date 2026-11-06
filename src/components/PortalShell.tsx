@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { actApi, api } from '@/lib/api';
+import { PageHelp } from '@/components/PageHelp';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -80,6 +81,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
     {navigationOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
     <header className="mobile-header"><button className="mobile-menu-toggle" type="button" aria-label={navigationOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={navigationOpen} aria-controls="primary-sidebar" onClick={() => setNavigationOpen((open) => !open)}>{navigationOpen ? <IconX size={21} /> : <IconMenu2 size={21} />}</button><Link className="mobile-brand" href="/dashboard" aria-label="GVI Ticketing System home"><span>G</span><strong>GVI Ticketing</strong></Link><div className="mobile-account"><span>{user.name}</span><button type="button" onClick={() => void logout()} aria-label="Log out"><IconLogout size={18} /></button></div></header>
     <main className="portal-main">{children}</main>
+    <PageHelp pathname={pathname} />
     {(passwordOpen || user.mustChangePassword) && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="password-title"><h2 id="password-title">Change password</h2><p>{user.mustChangePassword ? 'Set a new password before continuing.' : 'Use at least 12 characters with uppercase, lowercase, and a number.'}</p>{passwordError && <div className="alert">{passwordError}</div>}<label>New password<input type="password" minLength={12} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><div className="modal-actions">{!user.mustChangePassword && <button className="secondary" onClick={() => setPasswordOpen(false)}>Cancel</button>}<button className="primary" disabled={password.length < 12} onClick={() => void changePassword()}>Update password</button></div></section></div>}
   </div>;
 }

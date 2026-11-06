@@ -214,12 +214,21 @@
   overflow-wrap: anywhere;
 }
 .workflow-config-row {
-  grid-template-columns: 36px minmax(220px, 1fr) minmax(390px, 1.25fr) 40px;
+  grid-template-columns: 36px minmax(0, 1fr) 40px;
   align-items: start;
+}
+.workflow-config-row > input { grid-column: 2; }
+.workflow-config-row > .step-role-list {
+  grid-column: 2 / 4;
+  width: 100%;
+}
+.workflow-config-row > button {
+  grid-column: 3;
+  grid-row: 1;
 }
 .step-role-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 16px;
   padding: 14px 16px;
   background: #fbfcfd;
@@ -230,6 +239,17 @@
   min-height: 32px;
   align-items: center;
   gap: 9px;
+  min-width: 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.step-role-list .check input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
 }
 .step-condition-editor { padding: 18px; }
 .step-condition-editor .secondary.compact {
@@ -299,8 +319,6 @@
 
 @media (max-width: 1180px) {
   .workflow-config-row { grid-template-columns: 36px minmax(0, 1fr) 40px; }
-  .workflow-config-row > .step-role-list { grid-column: 2 / 4; width: 100%; }
-  .workflow-config-row > button { grid-column: 3; grid-row: 1; }
 }
 
 @media (max-width: 720px) {

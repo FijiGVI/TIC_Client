@@ -16,7 +16,7 @@ apiRootUrl.pathname = apiRootUrl.pathname.slice(0, -'/tic'.length);
 
 const ACCESS_TOKEN_KEY = 'tic.accessToken';
 const REFRESH_TOKEN_KEY = 'tic.refreshToken';
-
+// Test
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
 let refreshPromise: Promise<void> | null = null;

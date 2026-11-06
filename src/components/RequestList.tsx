@@ -17,6 +17,12 @@ import type { DepartmentOption, PaginationMeta, ServiceRequest } from "@/lib/typ
 type Filter = "all" | "open" | "completed";
 const statusLabel = (status: string) => status.replaceAll("_", " ");
 const initialMeta: PaginationMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 };
+const roleLabels = {
+  admin: "Administrator",
+  request_manager: "Request manager",
+  approver: "Approver",
+  requester: "Requester",
+} as const;
 
 export function RequestList({ managed = false, allowCreate = false }: { managed?: boolean; allowCreate?: boolean }) {
   const { user } = useAuth();
@@ -38,12 +44,34 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
   const [createOpen, setCreateOpen] = useState(false);
   const [stepResponses, setStepResponses] = useState<Record<string, unknown>>({});
   const selectedStep = selected?.currentStep === null || selected?.currentStep === undefined ? null : selected.formSnapshot.workflowSteps[selected.currentStep];
+  const selectedStepFields = selectedStep && selected
+    ? selected.formSnapshot.fields.filter((field) => field.stepId === selectedStep.id)
+    : [];
   const canCompleteSelectedStep = Boolean(
     selectedStep &&
     user &&
     (selectedStep.approverActorId === user.id ||
       (selectedStep.allowedRoles || [selectedStep.approverRole]).includes(user.role)),
   );
+  const currentStepFor = (request: ServiceRequest) =>
+    request.currentStep === null || request.currentStep === undefined
+      ? null
+      : request.formSnapshot.workflowSteps[request.currentStep] || null;
+  const isPendingForCurrentUser = (request: ServiceRequest) => {
+    const step = currentStepFor(request);
+    return Boolean(
+      step &&
+      user &&
+      request.status === "in_review" &&
+      (step.approverActorId === user.id ||
+        (step.allowedRoles || [step.approverRole]).includes(user.role)),
+    );
+  };
+  const requiredStepFieldsComplete = selectedStepFields.every((field) => {
+    if (!field.required) return true;
+    const value = stepResponses[field.id];
+    return field.type === "checkbox" ? value === true : String(value ?? "").trim().length > 0;
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -188,6 +216,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
             <span>Request</span>
             {managed && <span>Requester</span>}
             {managed && <span>Department</span>}
+            <span>Current step</span>
             <span>Status</span>
             <span>Submitted</span>
             <span />
@@ -215,12 +244,22 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                   </span>
                 )}
                 {managed && <span>{request.departmentSnapshot?.code || request.departmentSnapshot?.name || "Not available"}</span>}
-                <span>
+                <span className="current-step-cell">
+                  {currentStepFor(request) ? (
+                    <>
+                      <strong>{currentStepFor(request)?.name}</strong>
+                      {isPendingForCurrentUser(request) && <em>Pending your action</em>}
+                    </>
+                  ) : (
+                    <small>Workflow complete</small>
+                  )}
+                </span>
+                <span className="status-cell">
                   <em className={`status ${request.status}`}>
                     {statusLabel(request.status)}
                   </em>
                 </span>
-                <span>
+                <span className="submitted-cell">
                   {new Date(request.createdAt).toLocaleDateString(undefined, {
                     month: "short",
                     day: "numeric",
@@ -267,6 +306,20 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 Submitted {new Date(selected.createdAt).toLocaleString()}
               </span>
             </div>
+            {selectedStep && (
+              <div className={`workflow-state ${canCompleteSelectedStep ? "pending-for-you" : ""}`}>
+                <div>
+                  <small>Current workflow step</small>
+                  <strong>{selectedStep.name}</strong>
+                  <span>
+                    Assigned to {(selectedStep.allowedRoles || [selectedStep.approverRole])
+                      .map((role) => roleLabels[role])
+                      .join(", ")}
+                  </span>
+                </div>
+                <em>{canCompleteSelectedStep ? "Pending your action" : "Waiting for assigned role"}</em>
+              </div>
+            )}
             <h3>Request details</h3>
             <dl>
               {selected.departmentSnapshot && <div><dt>Department</dt><dd>{selected.departmentSnapshot.code ? `${selected.departmentSnapshot.code} — ` : ""}{selected.departmentSnapshot.name}</dd></div>}
@@ -300,7 +353,32 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 </div>
               </>
             )}
-            {canCompleteSelectedStep && selected.currentStep !== null && (() => { const step=selected.formSnapshot.workflowSteps[selected.currentStep];const fields=selected.formSnapshot.fields.filter((field)=>field.stepId===step?.id);if(!fields.length)return null;return <><h3>{step?.name} fields</h3>{step?.instructions&&<p>{step.instructions}</p>}<div className="dynamic-fields step-response-fields">{fields.map((field)=><label key={field.id}>{field.label}<small>{field.description}</small>{field.type==="textarea"?<textarea required={field.required} value={String(stepResponses[field.id]||"")} onChange={(event)=>setStepResponses({...stepResponses,[field.id]:event.target.value})}/>:field.type==="select"?<select required={field.required} value={String(stepResponses[field.id]||"")} onChange={(event)=>setStepResponses({...stepResponses,[field.id]:event.target.value})}><option value="">Select one</option>{field.options.map((option)=><option key={option}>{option}</option>)}</select>:field.type==="checkbox"?<input type="checkbox" checked={Boolean(stepResponses[field.id])} onChange={(event)=>setStepResponses({...stepResponses,[field.id]:event.target.checked})}/>:<input required={field.required} type={field.type} value={String(stepResponses[field.id]||"")} onChange={(event)=>setStepResponses({...stepResponses,[field.id]:event.target.value})}/>}</label>)}</div></>;})()}
+            {canCompleteSelectedStep && selectedStep && selectedStepFields.length > 0 && (
+              <>
+                <h3>{selectedStep.name} fields</h3>
+                {selectedStep.instructions && <p>{selectedStep.instructions}</p>}
+                <div className="dynamic-fields step-response-fields">
+                  {selectedStepFields.map((field) => (
+                    <label key={field.id}>
+                      {field.label}{field.required && <span aria-hidden="true"> *</span>}
+                      <small>{field.description}</small>
+                      {field.type === "textarea" ? (
+                        <textarea required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
+                      ) : field.type === "select" ? (
+                        <select required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })}>
+                          <option value="">Select one</option>
+                          {field.options.map((option) => <option key={option}>{option}</option>)}
+                        </select>
+                      ) : field.type === "checkbox" ? (
+                        <input type="checkbox" checked={Boolean(stepResponses[field.id])} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.checked })} />
+                      ) : (
+                        <input required={field.required} type={field.type} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
             {canCompleteSelectedStep && selected.status === "in_review" && (
               <div className="modal-actions">
                 <button
@@ -312,7 +390,8 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 </button>
                 <button
                   className="primary"
-                  disabled={acting}
+                  disabled={acting || !requiredStepFieldsComplete}
+                  title={requiredStepFieldsComplete ? "Complete this workflow step" : "Complete all required step fields first"}
                   onClick={() => void act("approve")}
                 >
                   {acting ? "Updating…" : "Complete step"}

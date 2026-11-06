@@ -115,3 +115,132 @@
   .profile-menu { position: fixed; right: 16px; bottom: 76px; left: 16px; width: auto; }
 }
 .step-role-list{display:flex;flex-wrap:wrap;gap:8px 14px;padding:10px;border:1px solid var(--line);border-radius:8px}.step-role-list>small{width:100%;color:var(--muted)}.step-role-list label{margin:0}.step-condition-editor{display:grid;gap:10px;margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#f8fafc}.step-condition-editor>div:first-child{display:grid;grid-template-columns:1fr minmax(220px,360px);align-items:center;gap:12px}.condition-rule{display:grid;grid-template-columns:1.2fr 1fr 1fr 36px;gap:8px;align-items:center}.condition-rule button{display:grid;place-items:center;min-height:40px;border:0;border-radius:7px;background:#fff0ee;color:var(--danger)}@media(max-width:700px){.step-condition-editor>div:first-child,.condition-rule{grid-template-columns:1fr}.condition-rule button{width:100%}}
+
+/* Form workflow builder */
+.field-config-row {
+  grid-template-columns: 36px minmax(180px, 1.5fr) minmax(150px, 1fr) minmax(130px, .75fr) minmax(190px, 1fr) auto 40px;
+}
+.workflow-config-row {
+  grid-template-columns: 36px minmax(220px, 1fr) minmax(390px, 1.25fr) 40px;
+  align-items: start;
+}
+.step-role-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 10px 16px;
+  padding: 14px 16px;
+  background: #fbfcfd;
+}
+.step-role-list > small { grid-column: 1 / -1; }
+.step-role-list .check {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 9px;
+}
+.step-condition-editor { padding: 18px; }
+.step-condition-editor .secondary.compact {
+  display: inline-flex;
+  width: max-content;
+  height: auto;
+  min-height: 40px;
+  place-items: initial;
+  border: 1px solid #d0d5dd;
+  background: white;
+  color: #344054;
+}
+.step-condition-editor .secondary.compact:hover { background: #f7f8fa; }
+.step-instructions {
+  margin: 14px 0 0;
+  color: var(--ink);
+}
+.step-instructions textarea { min-height: 76px; }
+
+/* Workflow ownership and pending-state visibility */
+.request-row { grid-template-columns: 1.05fr 1.45fr 1fr .8fr 1fr 24px; }
+.request-row.managed { grid-template-columns: 1fr 1.25fr 1fr .7fr 1fr .8fr .9fr 24px; }
+.current-step-cell {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.current-step-cell strong {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.current-step-cell em,
+.workflow-state > em {
+  width: max-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff2cc;
+  color: #8a5a00;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+.current-step-cell small { color: var(--muted); }
+.workflow-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 18px 0 24px;
+  padding: 16px;
+  border: 1px solid #d8e2ea;
+  border-left: 4px solid #98a2b3;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.workflow-state.pending-for-you {
+  border-color: #a8d6cf;
+  border-left-color: var(--teal);
+  background: #f1fbf9;
+}
+.workflow-state > div { display: grid; gap: 4px; }
+.workflow-state small,
+.workflow-state span { color: var(--muted); font-size: 11px; }
+.workflow-state strong { font-size: 15px; }
+
+@media (max-width: 1180px) {
+  .field-config-row { grid-template-columns: 36px repeat(2, minmax(0, 1fr)) 40px; }
+  .field-config-row > input:first-of-type { grid-column: 2 / 4; }
+  .field-config-row > input:nth-of-type(2) { grid-column: 2; }
+  .field-config-row > select:first-of-type { grid-column: 3; }
+  .field-config-row > select:nth-of-type(2) { grid-column: 2 / 4; }
+  .field-config-row > .check { grid-column: 2; }
+  .field-config-row > button { grid-column: 4; grid-row: 1; }
+  .workflow-config-row { grid-template-columns: 36px minmax(0, 1fr) 40px; }
+  .workflow-config-row > .step-role-list { grid-column: 2 / 4; width: 100%; }
+  .workflow-config-row > button { grid-column: 3; grid-row: 1; }
+}
+
+@media (max-width: 720px) {
+  .field-editor.improved article { padding: 12px; }
+  .field-config-row,
+  .workflow-config-row { grid-template-columns: 32px minmax(0, 1fr) 40px; }
+  .field-config-row > input:first-of-type,
+  .field-config-row > input:nth-of-type(2),
+  .field-config-row > select:first-of-type,
+  .field-config-row > select:nth-of-type(2),
+  .field-config-row > .check,
+  .workflow-config-row > input,
+  .workflow-config-row > .step-role-list {
+    grid-column: 2 / 4;
+  }
+  .field-config-row > button,
+  .workflow-config-row > button { grid-column: 3; grid-row: 1; }
+  .step-role-list { grid-template-columns: 1fr; }
+  .step-role-list > small { grid-column: 1; }
+  .step-condition-editor { margin-inline: -2px; padding: 14px; }
+  .step-condition-editor > div:first-child { align-items: stretch; }
+  .step-condition-editor .secondary.compact { width: 100%; }
+  .request-row:not(.heading),
+  .request-row.managed:not(.heading) { grid-template-columns: minmax(0, 1fr) auto; }
+  .request-row:not(.heading) > .current-step-cell { grid-column: 1 / -1; grid-row: auto; }
+  .request-row:not(.heading) > .status-cell { grid-column: 2; grid-row: 1; }
+  .request-row:not(.heading) > .submitted-cell { grid-column: 1; color: var(--muted); font-size: 11px; }
+  .workflow-state { align-items: flex-start; flex-direction: column; }
+}

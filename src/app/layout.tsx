@@ -18,7 +18,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "TIC Employee Services",
+  title: "GVI Ticketing System",
   description: "Secure employee service request portal",
 };
 

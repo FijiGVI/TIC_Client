@@ -85,3 +85,28 @@
 @media (max-width: 1050px) { .permission-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .field-row { grid-template-columns: auto minmax(0, 1fr); } .field-row > input, .field-row > select { min-width: 0; width: 100%; } }
 @media (max-width: 950px) { .modal-composer { display: flex; flex-direction: column; } .modal-composer > aside { display: flex; flex: none; gap: 8px; padding: 12px 18px; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--line); scroll-snap-type: x proximity; } .modal-composer > aside h3, .modal-composer > aside h4 { display: none; } .modal-composer > aside > div { display: flex; gap: 8px; } .modal-composer > aside button { min-width: 210px; border: 1px solid var(--line); background: white; scroll-snap-align: start; } .modal-request-form { flex: 1; } }
 @media (max-width: 700px) { .permission-grid { grid-template-columns: 1fr; } .new-request-modal { width: 100%; height: 96dvh; max-height: 96dvh; border-radius: 18px 18px 0 0; } .modal-heading { padding: 24px 64px 18px 18px; } .modal-composer { display: flex; } .modal-composer > aside { display: flex; gap: 8px; padding: 12px 18px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); } .modal-composer > aside h3, .modal-composer > aside h4 { display: none; } .modal-composer > aside > div { display: flex; gap: 8px; } .modal-composer > aside button { min-width: 180px; border: 1px solid var(--line); background: white; } .modal-request-form { padding: 22px 18px; } .modal-request-form > form > .primary { bottom: -22px; width: calc(100% + 36px); margin: 24px -18px -22px; padding-inline: 18px; } .permission-grid { grid-template-columns: 1fr; } .builder.builder-responsive { grid-template-columns: 1fr; } .builder.builder-responsive > aside { max-height: 240px; overflow: auto; } .form-grid, .validation-editor { grid-template-columns: 1fr !important; } .form-grid .wide, .validation-editor .validation-pattern, .validation-editor .validation-message, .validation-editor .validation-help { grid-column: auto !important; } .editor-actions, .save-bar { align-items: stretch; flex-direction: column; } .audience { flex-direction: column; } }
+
+/* Desktop navigation and account controls */
+.sidebar { position: sticky; }
+.sidebar-collapse { position: absolute; top: 30px; right: -15px; z-index: 2; display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid rgb(255 255 255 / 16%); border-radius: 50%; background: var(--navy); color: white; box-shadow: 0 4px 12px rgb(6 20 31 / 20%); }
+.sidebar-user { position: relative; }
+.profile-menu { position: absolute; z-index: 5; right: 0; bottom: 72px; display: grid; width: 230px; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--ink); box-shadow: 0 16px 40px rgb(6 20 31 / 25%); }
+.profile-menu small { color: var(--muted); overflow-wrap: anywhere; text-transform: capitalize; }
+.profile-menu p { margin: 6px 0 0; color: var(--muted); font-size: 11px; }
+.profile-menu button { min-height: 38px; margin-top: 8px; border: 1px solid var(--line); border-radius: 7px; background: #f8fafc; color: var(--ink); font-weight: 700; }
+.portal.sidebar-collapsed { grid-template-columns: 76px minmax(0, 1fr); }
+.sidebar-collapsed .sidebar { padding-inline: 10px; }
+.sidebar-collapsed .sidebar > .brand { justify-content: center; padding-inline: 0; }
+.sidebar-collapsed .sidebar > .brand div, .sidebar-collapsed .sidebar nav a span, .sidebar-collapsed .sidebar-user > div, .sidebar-collapsed .sidebar-user > button:not(.sidebar-logout), .sidebar-collapsed .sidebar-logout span { display: none; }
+.sidebar-collapsed .sidebar nav a { justify-content: center; }
+.sidebar-collapsed .sidebar-user { grid-template-columns: 1fr; justify-items: center; }
+.sidebar-collapsed .sidebar-logout { display: grid; width: 36px; height: 36px; place-items: center; padding: 0; }
+
+@media (max-width: 720px) {
+  .portal.sidebar-collapsed { display: block; }
+  .sidebar-collapse { display: none; }
+  .sidebar-collapsed .sidebar { padding: 24px 16px calc(20px + env(safe-area-inset-bottom)); }
+  .sidebar-collapsed .sidebar > .brand div, .sidebar-collapsed .sidebar nav a span, .sidebar-collapsed .sidebar-user > div, .sidebar-collapsed .sidebar-user > button:not(.sidebar-logout) { display: initial; }
+  .sidebar-collapsed .sidebar nav a { justify-content: flex-start; }
+  .profile-menu { position: fixed; right: 16px; bottom: 76px; left: 16px; width: auto; }
+}

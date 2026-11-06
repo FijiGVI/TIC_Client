@@ -18,7 +18,7 @@ type Filter = "all" | "open" | "completed";
 const statusLabel = (status: string) => status.replaceAll("_", " ");
 const initialMeta: PaginationMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
-export function RequestList({ managed = false, allowCreate = false, initialCreateOpen = false }: { managed?: boolean; allowCreate?: boolean; initialCreateOpen?: boolean }) {
+export function RequestList({ managed = false, allowCreate = false }: { managed?: boolean; allowCreate?: boolean }) {
   const { user } = useAuth();
   const canCreate = allowCreate && Boolean(user?.permissions.includes("requests.create"));
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
@@ -35,7 +35,7 @@ export function RequestList({ managed = false, allowCreate = false, initialCreat
   const [departmentId, setDepartmentId] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
-  const [createOpen, setCreateOpen] = useState(initialCreateOpen && canCreate);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);

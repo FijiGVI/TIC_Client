@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function LegacyFormRequestPage() {
-  redirect('/requests?new=1');
+  redirect('/requests');
 }

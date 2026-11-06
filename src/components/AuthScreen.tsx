@@ -48,14 +48,14 @@ export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
   return (
     <main className="auth-page">
       <section className="auth-story">
-        <div className="brand light"><span>T</span><div><strong>TIC</strong><small>Employee Services</small></div></div>
+        <div className="brand light"><span>G</span><div><strong>GVI Ticketing System</strong><small>Employee Services</small></div></div>
         <div><p className="eyebrow">One place for every request</p><h1>Work requests,<br />without the friction.</h1><p>Submit, track, and collaborate on employee services through a secure, transparent workflow.</p></div>
         <div className="trust"><IconShieldCheck size={22} /><span>Enterprise-grade identity and role-based access</span></div>
       </section>
       <section className="auth-panel">
         <form className="auth-card" onSubmit={submit}>
-          <p className="eyebrow">Welcome to TIC</p>
-          <h2>{mode === 'register' ? 'ACT manages your account' : 'Login to your ACT account'}</h2>
+          <p className="eyebrow">Welcome</p>
+          <h2>{mode === 'register' ? 'Your account is centrally managed' : 'Login to your account'}</h2>
           <p>Access your requests and approvals.</p>
           {error && <div className="alert" role="alert">{error}</div>}
           <label>Email<input required type="email" autoComplete="email" value={identifier} onChange={(event) => setIdentifier(event.target.value)} /></label>
@@ -64,7 +64,7 @@ export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
           <button className="primary" disabled={submitting}>{submitting ? 'Please wait…' : 'Login'}<IconArrowRight size={18} /></button>
           <div className="divider"><span>or</span></div>
           <button className="secondary" type="button" disabled={submitting} onClick={() => void microsoft()}><IconBrandWindows size={19} />Continue with Microsoft</button>
-          <p className="auth-switch">Use the same credentials you use for ACT.</p>
+          <p className="auth-switch">Use your company credentials or Microsoft account.</p>
         </form>
       </section>
     </main>

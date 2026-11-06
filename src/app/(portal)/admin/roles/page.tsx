@@ -2,9 +2,12 @@
 
 import { IconDeviceFloppy, IconRefresh, IconShieldLock } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
+import { Pagination } from '@/components/Pagination';
 import { permissionDetails, roleDetails, roles } from '@/lib/access-control';
 import { api } from '@/lib/api';
 import type { Role, RolePermissionSet, TicPermission } from '@/lib/types';
+
+const PAGE_SIZE = 8;
 
 export default function RolesPage() {
   const [matrix, setMatrix] = useState<RolePermissionSet[]>([]);
@@ -12,6 +15,10 @@ export default function RolesPage() {
   const [savingRole, setSavingRole] = useState<Role | null>(null);
   const [savedRole, setSavedRole] = useState<Role | null>(null);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(permissionDetails.length / PAGE_SIZE));
+  const visiblePermissions = permissionDetails.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,7 +95,7 @@ export default function RolesPage() {
               </tr>
             </thead>
             <tbody>
-              {permissionDetails.map((permission, index) => <tr key={permission.value} className={index === 0 || permissionDetails[index - 1].group !== permission.group ? 'group-start' : ''}>
+              {visiblePermissions.map((permission, index) => <tr key={permission.value} className={index === 0 || visiblePermissions[index - 1].group !== permission.group ? 'group-start' : ''}>
                 <th scope="row"><span>{permission.group}</span><strong>{permission.label}</strong><small>{permission.description}</small></th>
                 {roles.map((role) => {
                   const entry = matrix.find((item) => item.role === role);
@@ -107,6 +114,11 @@ export default function RolesPage() {
             </tfoot>
           </table>
         </div>
+        <Pagination
+          meta={{ page, pageSize: PAGE_SIZE, total: permissionDetails.length, totalPages }}
+          disabled={loading || savingRole !== null}
+          onPageChange={setPage}
+        />
       </section>
     </>
   );

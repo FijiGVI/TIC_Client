@@ -123,7 +123,7 @@ export function FormBuilder() {
   const load = useCallback(async () => {
     try {
       const result = await api.get<{ data: RequestForm[]; meta: PaginationMeta }>(
-        `/forms?page=${page}&pageSize=15`,
+        `/forms?page=${page}&pageSize=100`,
       );
       setForms(result.data);
       setMeta(result.meta);
@@ -257,7 +257,7 @@ export function FormBuilder() {
           {error}
         </div>
       )}
-      <div className="builder builder-responsive">
+      <div className="builder builder-responsive form-dropdown-builder">
         <aside className="surface">
           <h2>Forms</h2>
           {forms.map((form) => (
@@ -284,6 +284,28 @@ export function FormBuilder() {
           <Pagination meta={meta} disabled={saving} onPageChange={setPage} />
         </aside>
         <section className="surface editor">
+          <div className="form-selector-panel">
+            <label>
+              Select a form
+              <select value={"id" in draft ? String(draft.id) : "new"} onChange={(event) => {
+                if (event.target.value === "new") { setDraft(blank()); setDraftStatus("New form"); return; }
+                const selected = forms.find((form) => String(form.id) === event.target.value);
+                if (selected) { setDraft(selected); setDraftStatus(""); setPreview(false); }
+              }}>
+                <option value="new">New form</option>
+                {forms.map((form) => <option key={form.id} value={String(form.id)}>{form.name} ({form.active ? "Active" : "Inactive"})</option>)}
+              </select>
+              <small>Choose a form to view its information and edit its contents.</small>
+            </label>
+            {"id" in draft && <div className="form-identification">
+              <div><span>Form</span><strong>{draft.name}</strong></div>
+              <div><span>Group</span><strong>{draft.groupName}</strong></div>
+              <div><span>Status</span><strong>{draft.active ? "Active" : "Inactive"}</strong></div>
+              <div><span>Fields</span><strong>{draft.fields.length}</strong></div>
+              <div><span>Created</span><strong>{draft.createdAt ? new Date(draft.createdAt).toLocaleString() : "Not available"}</strong><small>by {draft.creator?.name || "System"}</small></div>
+              <div><span>Last updated</span><strong>{draft.updatedAt ? new Date(draft.updatedAt).toLocaleString() : "Not available"}</strong><small>by {draft.updater?.name || "System"}</small></div>
+            </div>}
+          </div>
           <form onSubmit={save} onKeyDown={keyboardSave}>
             <div className="editor-actions">
               <small>{draftStatus}</small>

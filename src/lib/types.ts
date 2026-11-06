@@ -1,4 +1,4 @@
-export type Role = "admin" | "request_manager" | "approver" | "requester";
+export type Role = string;
 export type TicPermission =
   | "users.manage"
   | "roles.manage"
@@ -51,7 +51,7 @@ export type WorkflowStep = {
   id: string;
   name: string;
   instructions: string;
-  approverRole: Exclude<Role, "requester">;
+  approverRole: Role;
   approverActorId?: string | null;
   approverUserId?: string | null;
   allowedRoles: Role[];
@@ -76,9 +76,15 @@ export type RequestForm = {
 };
 export type RolePermissionSet = {
   role: Role;
+  label: string;
+  description: string;
+  active: boolean;
+  system: boolean;
   permissions: TicPermission[];
+  createdAt?: string;
   updatedAt: string | null;
 };
+export type RoleOption = Pick<RolePermissionSet, "role" | "label" | "description" | "system">;
 export type TicActor = {
   id: string;
   source: "act";

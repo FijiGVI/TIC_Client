@@ -89,10 +89,11 @@ const helpByPath: Record<string, HelpContent> = {
     title: "Roles and permissions guide",
     summary: "Control what each role can see and do across the ticketing system.",
     steps: [
-      "Find the capability you want to manage in the permissions table.",
-      "Check a role to grant that capability or clear it to remove access.",
-      "Review the enabled count for each role.",
-      "Save the changed role and verify access using an account with that role.",
+      "Use Create role to add a role with a clear name and purpose.",
+      "Use the Role directory to view, edit, activate, deactivate, or delete custom roles.",
+      "In the permission matrix, check a capability to grant it or clear it to remove access.",
+      "Save the changed role, then assign it to users or form workflow steps.",
+      "Reassign every user and form before deleting a custom role.",
     ],
   },
   "/admin/sharepoint": {

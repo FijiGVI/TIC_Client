@@ -11,7 +11,7 @@ type MicrosoftRequesterSession = { accessToken: string; identity: { email: strin
 type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[] };
 type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<void>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string): Promise<void>; logout(): Promise<void>; refreshUser(): Promise<void> };
 
-const defaultPermissions: Record<Role, TicPermission[]> = {
+const defaultPermissions: Record<string, TicPermission[]> = {
   admin: ['users.manage', 'roles.manage', 'forms.manage', 'requests.create', 'requests.read.all', 'requests.update', 'requests.approve'],
   request_manager: ['forms.manage', 'requests.create', 'requests.read.all', 'requests.update'],
   approver: ['requests.create', 'requests.read.assigned', 'requests.approve'],
@@ -34,7 +34,7 @@ function normalizeUser(user: ActUser, context?: TicContext): User {
     email: user.email,
     name: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
     role,
-    permissions: context?.permissions || defaultPermissions[role],
+    permissions: context?.permissions || defaultPermissions[role] || [],
     mustChangePassword: Boolean(user.shouldChangePassword),
   };
 }

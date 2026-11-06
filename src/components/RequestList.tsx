@@ -17,7 +17,7 @@ import type { DepartmentOption, PaginationMeta, ServiceRequest } from "@/lib/typ
 type Filter = "all" | "open" | "completed";
 const statusLabel = (status: string) => status.replaceAll("_", " ");
 const initialMeta: PaginationMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 };
-const roleLabels = {
+const roleLabels: Record<string, string> = {
   admin: "Administrator",
   request_manager: "Request manager",
   approver: "Approver",
@@ -313,7 +313,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                   <strong>{selectedStep.name}</strong>
                   <span>
                     Assigned to {(selectedStep.allowedRoles || [selectedStep.approverRole])
-                      .map((role) => roleLabels[role])
+                      .map((role) => roleLabels[role] || role.replaceAll("_", " "))
                       .join(", ")}
                   </span>
                 </div>

@@ -112,6 +112,7 @@ function createApi(scope: ApiScope) {
     post: <T>(path: string, body?: unknown) => request<T>(scope, path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
     put: <T>(path: string, body: unknown) => request<T>(scope, path, { method: 'PUT', body: JSON.stringify(body) }),
     patch: <T>(path: string, body: unknown) => request<T>(scope, path, { method: 'PATCH', body: JSON.stringify(body) }),
+    delete: <T = void>(path: string) => request<T>(scope, path, { method: 'DELETE' }),
   };
 }
 

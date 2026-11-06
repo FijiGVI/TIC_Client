@@ -17,15 +17,9 @@ import {
 } from "react";
 import { api } from "@/lib/api";
 import { Pagination } from "@/components/Pagination";
-import type { FieldType, FormField, PaginationMeta, RequestForm, Role } from "@/lib/types";
+import type { FieldType, FormField, PaginationMeta, RequestForm, Role, RoleOption } from "@/lib/types";
 
 type Draft = Omit<RequestForm, "id"> | RequestForm;
-const roles: Array<{ value: Role; label: string }> = [
-  { value: "requester", label: "Requester" },
-  { value: "request_manager", label: "Request manager" },
-  { value: "approver", label: "Approver" },
-  { value: "admin", label: "Administrator" },
-];
 // File fields remain readable for backwards compatibility, but cannot be
 // created until the TIC API has a multipart upload contract and object-store integration.
 const fieldTypes: FieldType[] = [
@@ -112,6 +106,7 @@ function PreviewField({ field }: { field: FormField }) {
 
 export function FormBuilder() {
   const [forms, setForms] = useState<RequestForm[]>([]);
+  const [roles, setRoles] = useState<Array<{ value: Role; label: string }>>([]);
   const [draft, setDraft] = useState<Draft>(blank());
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -122,11 +117,13 @@ export function FormBuilder() {
   const draftReady = useRef(false);
   const load = useCallback(async () => {
     try {
-      const result = await api.get<{ data: RequestForm[]; meta: PaginationMeta }>(
-        `/forms?page=${page}&pageSize=100`,
-      );
-      setForms(result.data);
-      setMeta(result.meta);
+      const [formResult, roleResult] = await Promise.all([
+        api.get<{ data: RequestForm[]; meta: PaginationMeta }>(`/forms?page=${page}&pageSize=100`),
+        api.get<{ data: RoleOption[] }>("/roles"),
+      ]);
+      setForms(formResult.data);
+      setMeta(formResult.meta);
+      setRoles(roleResult.data.map((role) => ({ value: role.role, label: role.label })));
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to load forms",
@@ -687,7 +684,7 @@ export function FormBuilder() {
                             })
                           }
                         />
-                        <div className="step-role-list"><small>Roles allowed to complete this step</small>{roles.map((role)=>{const checked=(step.allowedRoles||[step.approverRole]).includes(role.value);return <label className="check" key={role.value}><input type="checkbox" checked={checked} onChange={(event)=>{const current=step.allowedRoles||[step.approverRole];const allowedRoles=event.target.checked?[...new Set([...current,role.value])]:current.filter((value)=>value!==role.value);if(allowedRoles.length)patchStep(index,{allowedRoles,approverRole:(allowedRoles.find((value)=>value!=="requester")||"approver") as "admin"|"request_manager"|"approver"});}}/>{role.label}</label>;})}</div>
+                        <div className="step-role-list"><small>Roles allowed to complete this step</small>{roles.map((role)=>{const checked=(step.allowedRoles||[step.approverRole]).includes(role.value);return <label className="check" key={role.value}><input type="checkbox" checked={checked} onChange={(event)=>{const current=step.allowedRoles||[step.approverRole];const allowedRoles=event.target.checked?[...new Set([...current,role.value])]:current.filter((value)=>value!==role.value);if(allowedRoles.length)patchStep(index,{allowedRoles,approverRole:allowedRoles[0]});}}/>{role.label}</label>;})}</div>
                         <button
                           type="button"
                           onClick={() =>

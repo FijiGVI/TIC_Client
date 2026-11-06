@@ -1,6 +1,6 @@
 import type { Role, TicPermission } from '@/lib/types';
 
-export const roleDetails: Record<Role, { label: string; description: string }> = {
+export const roleDetails: Record<string, { label: string; description: string }> = {
   admin: { label: 'Administrator', description: 'Full system administration and configuration access.' },
   request_manager: { label: 'Request manager', description: 'Manages service requests and operational workflows.' },
   approver: { label: 'Approver', description: 'Reviews requests assigned for approval.' },
@@ -25,3 +25,5 @@ export const permissionDetails: Array<{
 ];
 
 export const roles = Object.keys(roleDetails) as Role[];
+export const roleLabel = (role: Role, catalog?: Array<{ role: Role; label: string }>) =>
+  catalog?.find((item) => item.role === role)?.label || roleDetails[role]?.label || role.replaceAll('_', ' ');

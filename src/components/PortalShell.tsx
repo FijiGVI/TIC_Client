@@ -8,7 +8,6 @@ import {
   IconDatabaseImport,
   IconMenu2,
   IconLayoutDashboard,
-  IconMail,
   IconShieldLock,
   IconX,
 } from '@tabler/icons-react';
@@ -62,7 +61,6 @@ export function PortalShell({ children }: { children: ReactNode }) {
     },
     { href: '/admin/forms', label: 'Form builder', icon: IconForms, show: user.permissions.includes('forms.manage') },
     { href: '/admin/users', label: 'Users', icon: IconUsers, show: user.permissions.includes('users.manage') },
-    { href: '/admin/email', label: 'Email delivery', icon: IconMail, show: user.permissions.includes('users.manage') },
     { href: '/admin/roles', label: 'Roles & permissions', icon: IconShieldLock, show: user.permissions.includes('roles.manage') },
     { href: '/admin/sharepoint', label: 'SharePoint data', icon: IconDatabaseImport, show: user.permissions.includes('forms.manage') },
   ].filter((link) => link.show);

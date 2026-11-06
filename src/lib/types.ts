@@ -148,16 +148,3 @@ export type PaginationMeta = {
   total: number;
   totalPages: number;
 };
-
-export type EmailNotification = {
-  id: string;
-  recipientEmail: string;
-  subject: string;
-  status: "pending" | "processing" | "sent" | "failed";
-  attempts: number;
-  nextAttemptAt: string;
-  lastError: string | null;
-  sentAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};

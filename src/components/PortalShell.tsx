@@ -1,6 +1,6 @@
 'use client';
 
-import { IconChevronLeft, IconChevronRight, IconClipboardList, IconDatabaseImport, IconForms, IconLayoutDashboard, IconLogout, IconMenu2, IconShieldLock, IconUsers, IconX } from '@tabler/icons-react';
+import { IconChevronLeft, IconChevronRight, IconClipboardList, IconDatabaseImport, IconForms, IconHistory, IconLayoutDashboard, IconLogout, IconMenu2, IconShieldLock, IconUsers, IconX } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -59,6 +59,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
     { href: '/service-requests', label: 'Manage requests', icon: IconForms, show: user.permissions.some((permission) => ['requests.read.all', 'requests.read.assigned'].includes(permission)) },
     { href: '/admin/forms', label: 'Form builder', icon: IconForms, show: user.permissions.includes('forms.manage') },
     { href: '/admin/users', label: 'Users', icon: IconUsers, show: user.permissions.includes('users.manage') },
+    { href: '/admin/audit-logs', label: 'Audit logs', icon: IconHistory, show: user.permissions.includes('users.manage') },
     { href: '/admin/roles', label: 'Roles & permissions', icon: IconShieldLock, show: user.permissions.includes('roles.manage') },
     { href: '/admin/sharepoint', label: 'SharePoint data', icon: IconDatabaseImport, show: user.permissions.includes('forms.manage') },
   ].filter((link) => link.show);

@@ -94,6 +94,7 @@
 .profile-menu small { color: var(--muted); overflow-wrap: anywhere; text-transform: capitalize; }
 .profile-menu p { margin: 6px 0 0; color: var(--muted); font-size: 11px; }
 .profile-menu button { min-height: 38px; margin-top: 8px; border: 1px solid var(--line); border-radius: 7px; background: #f8fafc; color: var(--ink); font-weight: 700; }
+.audit-table{overflow-x:auto}.audit-row{display:grid;min-width:900px;grid-template-columns:180px 1.2fr 1.4fr 80px 80px 100px;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);font-size:12px}.audit-row.heading{background:#f8fafc;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase}.audit-empty{min-width:900px;margin:0;padding:32px 18px;text-align:center;color:var(--muted)}.audit-details{max-height:55vh;overflow:auto;padding:14px;border-radius:8px;background:#101828;color:#e4e7ec;font-size:11px;white-space:pre-wrap}
 .portal.sidebar-collapsed { grid-template-columns: 76px minmax(0, 1fr); }
 .sidebar-collapsed .sidebar { padding-inline: 10px; }
 .sidebar-collapsed .sidebar > .brand { justify-content: center; padding-inline: 0; }

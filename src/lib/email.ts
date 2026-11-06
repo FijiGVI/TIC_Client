@@ -1,8 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
-// This is intentionally a public browser endpoint. It contains no credential
-// and is expected to be visible in the browser's Network panel.
-export const AIMS_EMAIL_URL = 'https://aim-api-staging.globalvisioninc.com.ph/apis/sends/mail';
+const EMAIL_ROUTE = '/api/email';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type SendEmailPayload = { to: string; subject: string; message: string };
@@ -17,7 +15,7 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
   const normalized = { to: payload.to.trim().toLowerCase(), subject: payload.subject.trim(), message: payload.message.trim() };
   if (!EMAIL_PATTERN.test(normalized.to)) throw new Error('A valid recipient email is required');
   try {
-    const response = await client.post<SendEmailResponse>(AIMS_EMAIL_URL, normalized);
+    const response = await client.post<SendEmailResponse>(EMAIL_ROUTE, normalized);
     if (response.data.success === false) throw new Error(response.data.error || response.data.message || 'Email was rejected');
     return response.data;
   } catch (reason) {

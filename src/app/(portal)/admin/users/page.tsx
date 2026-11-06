@@ -10,28 +10,15 @@ import {
 } from "@tabler/icons-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/Pagination";
+import { roleDetails, roles } from "@/lib/access-control";
 import { api } from "@/lib/api";
 import { sendEmail } from "@/lib/email";
 import type {
   ManagedUser,
   PaginationMeta,
   Role,
-  RolePermissionSet,
-  TicPermission,
 } from "@/lib/types";
 
-const roles: Role[] = ["admin", "request_manager", "approver", "requester"];
-const permissions: TicPermission[] = [
-  "users.manage",
-  "roles.manage",
-  "forms.manage",
-  "requests.create",
-  "requests.read.all",
-  "requests.read.assigned",
-  "requests.read.own",
-  "requests.update",
-  "requests.approve",
-];
 const initialUser = {
   name: "",
   email: "",
@@ -42,7 +29,6 @@ const initialMeta: PaginationMeta = { page: 1, pageSize: 20, total: 0, totalPage
 
 export default function UsersPage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
-  const [matrix, setMatrix] = useState<RolePermissionSet[]>([]);
   const [draft, setDraft] = useState(initialUser);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -59,18 +45,14 @@ export default function UsersPage() {
     setLoading(true);
     setError("");
     try {
-      const [userResponse, roleResponse] = await Promise.all([
-        api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/${source === "tic" ? "users" : "act-identities"}?page=${page}&pageSize=20`),
-        api.get<{ data: RolePermissionSet[] }>("/roles/permissions"),
-      ]);
+      const userResponse = await api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/${source === "tic" ? "users" : "act-identities"}?page=${page}&pageSize=20`);
       setUsers(userResponse.data);
       setMeta(userResponse.meta);
-      setMatrix(roleResponse.data);
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "Unable to load users and roles",
+          : "Unable to load users",
       );
     } finally {
       setLoading(false);
@@ -155,44 +137,13 @@ export default function UsersPage() {
     }
   };
 
-  const togglePermission = (role: Role, permission: TicPermission) => {
-    setMatrix((current) =>
-      current.map((entry) =>
-        entry.role !== role
-          ? entry
-          : {
-              ...entry,
-              permissions: entry.permissions.includes(permission)
-                ? entry.permissions.filter((item) => item !== permission)
-                : [...entry.permissions, permission],
-            },
-      ),
-    );
-  };
-
-  const saveRole = async (entry: RolePermissionSet) => {
-    setError("");
-    try {
-      await api.put(`/roles/${entry.role}/permissions`, {
-        permissions: entry.permissions,
-      });
-      await load();
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to save role permissions",
-      );
-    }
-  };
-
   return (
     <>
       <header className="page-header">
         <div>
           <p className="eyebrow">Administration</p>
-          <h1>Users & roles</h1>
-          <p>Create accounts, control access, and review account activity.</p>
+          <h1>Users</h1>
+          <p>Create accounts, assign roles, and manage account access.</p>
         </div>
         <button
           className="secondary"
@@ -248,7 +199,7 @@ export default function UsersPage() {
                 >
                   {roles.map((role) => (
                     <option value={role} key={role}>
-                      {role.replace("_", " ")}
+                      {roleDetails[role].label}
                     </option>
                   ))}
                 </select>
@@ -341,7 +292,7 @@ export default function UsersPage() {
               >
                 {roles.map((role) => (
                   <option value={role} key={role}>
-                    {role.replace("_", " ")}
+                    {roleDetails[role].label}
                   </option>
                 ))}
               </select>
@@ -352,57 +303,6 @@ export default function UsersPage() {
           </form>
         </aside>
       </div>
-      <section className="surface permission-section">
-        <div className="surface-toolbar">
-          <div>
-            <h2>Permission matrix</h2>
-            <small>Server-authoritative TIC permissions</small>
-          </div>
-        </div>
-        <div className="permission-table">
-          <div className="permission-row heading">
-            <span>Permission</span>
-            {roles.map((role) => (
-              <strong key={role}>{role.replace("_", " ")}</strong>
-            ))}
-          </div>
-          {permissions.map((permission) => (
-            <div className="permission-row" key={permission}>
-              <span>{permission}</span>
-              {roles.map((role) => {
-                const entry = matrix.find((item) => item.role === role);
-                return (
-                  <label key={role}>
-                    <input
-                      type="checkbox"
-                      checked={entry?.permissions.includes(permission) || false}
-                      onChange={() => togglePermission(role, permission)}
-                    />
-                    <span className="sr-only">
-                      {role} {permission}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          ))}
-          <div className="permission-actions">
-            {roles.map((role) => {
-              const entry = matrix.find((item) => item.role === role);
-              return (
-                <button
-                  className="secondary"
-                  key={role}
-                  disabled={!entry}
-                  onClick={() => entry && void saveRole(entry)}
-                >
-                  Save {role.replace("_", " ")}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
     </>
   );
 }

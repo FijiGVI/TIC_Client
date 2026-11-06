@@ -4,7 +4,6 @@ import { IconCheck, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { api } from '@/lib/api';
-import { adminNotificationEmails, sendEmails } from '@/lib/email';
 import type { DepartmentOption, FormField, RequestForm } from '@/lib/types';
 
 const completeEmail = (value: string): string => {
@@ -62,7 +61,6 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
-  const [emailWarning, setEmailWarning] = useState('');
 
   useEffect(() => {
     Promise.all([api.get<{ data: RequestForm[] }>('/forms/public'), api.get<{ data: DepartmentOption[] }>('/departments')])
@@ -89,11 +87,6 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
     try {
       const result = await api.post<{ data: { referenceNumber: string } }>('/requests', { formId, departmentId, responses });
       setSuccess(result.data.referenceNumber); onSubmitted();
-      const failures = await sendEmails([
-        { to: user.email, subject: `TIC request ${result.data.referenceNumber} received`, message: `Your ${selected.name} request was submitted successfully. Reference: ${result.data.referenceNumber}.` },
-        ...adminNotificationEmails.map((to) => ({ to, subject: `New TIC request ${result.data.referenceNumber}`, message: `${user.name} submitted ${selected.name}. Reference: ${result.data.referenceNumber}.` })),
-      ]);
-      if (failures.length) setEmailWarning('The request was saved, but one or more notification emails could not be delivered.');
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to submit request'); }
     finally { setSaving(false); }
   };
@@ -103,7 +96,7 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
       <section className="modal new-request-modal" role="dialog" aria-modal="true" aria-labelledby="new-request-title" onMouseDown={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label="Close new request" onClick={onClose}><IconX size={21} /></button>
         {success ? (
-          <div className="modal-success"><span><IconCheck size={30} /></span><p className="eyebrow">Request received</p><h2 id="new-request-title">You’re all set.</h2><p>{emailWarning || 'Confirmation emails were sent.'}</p><strong>{success}</strong><button className="primary" type="button" onClick={onClose}>View my requests</button></div>
+          <div className="modal-success"><span><IconCheck size={30} /></span><p className="eyebrow">Request received</p><h2 id="new-request-title">You’re all set.</h2><p>We’ll email you as the request progresses.</p><strong>{success}</strong><button className="primary" type="button" onClick={onClose}>View my requests</button></div>
         ) : (
           <>
             <header className="modal-heading"><p className="eyebrow">Employee services</p><h2 id="new-request-title">New request</h2><p>Choose a service and provide the details the team needs.</p></header>

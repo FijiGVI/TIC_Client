@@ -41,6 +41,11 @@
 .modal-request-form { min-width: 0; padding: 28px; }
 .modal-request-form > form { width: min(900px, 100%); margin-inline: auto; }
 .modal-request-form > form > p:not(.eyebrow) { color: var(--muted); }
+.new-request-modal .dynamic-fields {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.new-request-modal .dynamic-fields > * { grid-column: 1; }
 .service-select { margin-bottom: 24px; }
 .service-select select { min-height: 50px; font-weight: 700; }
 .selected-service-summary { margin-bottom: 24px; padding: 20px; border: 1px solid #dce6ee; border-radius: 12px; background: linear-gradient(135deg, #f7fbfe, #f7fcfb); }

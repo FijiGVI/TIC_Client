@@ -36,6 +36,7 @@ export type FormField = {
   type: FieldType;
   required: boolean;
   options: string[];
+  stepId?: string | null;
   validation: {
     minLength?: number;
     maxLength?: number;
@@ -53,6 +54,8 @@ export type WorkflowStep = {
   approverRole: Exclude<Role, "requester">;
   approverActorId?: string | null;
   approverUserId?: string | null;
+  allowedRoles: Role[];
+  condition: { logic: "and" | "or"; rules: Array<{ fieldId:string; operator:"equals"|"not_equals"|"contains"|"is_empty"|"is_not_empty"; value:string }> };
 };
 export type RequestForm = {
   id: string;
@@ -99,18 +102,13 @@ export type ServiceRequest = {
   formId: string;
   departmentId: string | null;
   departmentSnapshot: DepartmentSnapshot | null;
-  ticketType: "request" | "issue";
-  category: string;
-  subject: string;
-  priority: "low" | "normal" | "high" | "urgent";
-  affectedService: string | null;
-  description: string | null;
   formSnapshot: RequestForm;
   responses: Record<string, unknown>;
   status: string;
   currentStep: number | null;
   assignedActorId: string | null;
   assignedRole: Role | null;
+  assignedRoles?: Role[];
   remarks: string | null;
   completedAt: string | null;
   createdAt: string;

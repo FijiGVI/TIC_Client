@@ -177,6 +177,7 @@ export function FormBuilder() {
         currentIndex === index ? { ...field, ...patch } : field,
       ),
     }));
+  const patchStep = (index: number, patch: Partial<(typeof draft.workflowSteps)[number]>) => setDraft((current) => ({ ...current, workflowSteps: current.workflowSteps.map((step, currentIndex) => currentIndex === index ? { ...step, ...patch } : step) }));
   const patchFieldValidation = (
     index: number,
     patch: Partial<FormField["validation"]>,
@@ -201,6 +202,7 @@ export function FormBuilder() {
           type: "text",
           required: false,
           options: [],
+          stepId: null,
           validation: {},
         },
       ],
@@ -461,6 +463,10 @@ export function FormBuilder() {
                             <option key={type}>{type}</option>
                           ))}
                         </select>
+                        <select aria-label="Field step" value={field.stepId || ""} onChange={(event) => patchField(index,{stepId:event.target.value||null})}>
+                          <option value="">Requester submission</option>
+                          {draft.workflowSteps.map((step)=><option value={step.id} key={step.id}>{step.name}</option>)}
+                        </select>
                         <label className="check">
                           <input
                             type="checkbox"
@@ -638,6 +644,8 @@ export function FormBuilder() {
                             instructions: "",
                             approverRole: "approver",
                             approverUserId: null,
+                            allowedRoles: ["approver"],
+                            condition: { logic: "and", rules: [] },
                           },
                         ],
                       })
@@ -666,32 +674,7 @@ export function FormBuilder() {
                             })
                           }
                         />
-                        <select
-                          value={step.approverRole}
-                          onChange={(event) =>
-                            setDraft({
-                              ...draft,
-                              workflowSteps: draft.workflowSteps.map(
-                                (item, currentIndex) =>
-                                  currentIndex === index
-                                    ? {
-                                        ...item,
-                                        approverRole: event.target.value as
-                                          | "admin"
-                                          | "request_manager"
-                                          | "approver",
-                                      }
-                                    : item,
-                              ),
-                            })
-                          }
-                        >
-                          <option value="approver">Approver</option>
-                          <option value="request_manager">
-                            Request manager
-                          </option>
-                          <option value="admin">Administrator</option>
-                        </select>
+                        <div className="step-role-list"><small>Roles allowed to complete this step</small>{roles.map((role)=>{const checked=(step.allowedRoles||[step.approverRole]).includes(role.value);return <label className="check" key={role.value}><input type="checkbox" checked={checked} onChange={(event)=>{const current=step.allowedRoles||[step.approverRole];const allowedRoles=event.target.checked?[...new Set([...current,role.value])]:current.filter((value)=>value!==role.value);if(allowedRoles.length)patchStep(index,{allowedRoles,approverRole:(allowedRoles.find((value)=>value!=="requester")||"approver") as "admin"|"request_manager"|"approver"});}}/>{role.label}</label>;})}</div>
                         <button
                           type="button"
                           onClick={() =>
@@ -706,6 +689,7 @@ export function FormBuilder() {
                           <IconTrash size={17} />
                         </button>
                       </div>
+                      <div className="step-condition-editor"><div><strong>Conditions (show this step only if…)</strong><select value={step.condition?.logic||"and"} onChange={(event)=>patchStep(index,{condition:{logic:event.target.value as "and"|"or",rules:step.condition?.rules||[]}})}><option value="and">All conditions match (AND)</option><option value="or">Any condition matches (OR)</option></select></div>{(step.condition?.rules||[]).map((rule,ruleIndex)=><div className="condition-rule" key={ruleIndex}><select value={rule.fieldId} onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,fieldId:event.target.value};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}><option value="">Select an earlier field</option>{draft.fields.filter((field)=>!field.stepId||draft.workflowSteps.findIndex((candidate)=>candidate.id===field.stepId)<index).map((field)=><option value={field.id} key={field.id}>{field.label}</option>)}</select><select value={rule.operator} onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,operator:event.target.value as typeof rule.operator};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="contains">Contains</option><option value="is_empty">Is empty</option><option value="is_not_empty">Is not empty</option></select>{!rule.operator.includes("empty")&&<input value={rule.value} placeholder="Value" onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,value:event.target.value};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}/>}<button type="button" aria-label="Remove condition" onClick={()=>patchStep(index,{condition:{logic:step.condition?.logic||"and",rules:(step.condition?.rules||[]).filter((_,current)=>current!==ruleIndex)}})}><IconTrash size={15}/></button></div>)}<button type="button" className="secondary compact" onClick={()=>patchStep(index,{condition:{logic:step.condition?.logic||"and",rules:[...(step.condition?.rules||[]),{fieldId:"",operator:"equals",value:""}]}})}><IconPlus size={15}/>Add condition</button></div>
                     </article>
                   ))}
                 </div>

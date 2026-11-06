@@ -131,6 +131,7 @@ export type ManagedUser = {
   email: string;
   name: string;
   firstName: string | null;
+  middleName: string | null;
   lastName: string | null;
   role: Role;
   active: boolean;

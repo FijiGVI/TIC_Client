@@ -429,44 +429,11 @@ export function FormBuilder() {
                 <div className="field-editor improved">
                   {draft.fields.map((field, index) => (
                     <article key={`${field.id}-${index}`}>
-                      <div className="field-row field-config-row">
-                        <span>{index + 1}</span>
-                        <input
-                          aria-label="Field label"
-                          value={field.label}
-                          onChange={(event) =>
-                            patchField(index, {
-                              label: event.target.value,
-                              id: (
-                                slug(event.target.value).replaceAll("-", "_") ||
-                                `field_${index + 1}`
-                              ).slice(0, 50),
-                            })
-                          }
-                        />
-                        <input
-                          aria-label="Field ID"
-                          readOnly
-                          className="readonly"
-                          value={field.id}
-                        />
-                        <select
-                          aria-label="Field type"
-                          value={field.type}
-                          onChange={(event) =>
-                            patchField(index, {
-                              type: event.target.value as FieldType,
-                            })
-                          }
-                        >
-                          {fieldTypes.map((type) => (
-                            <option key={type}>{type}</option>
-                          ))}
-                        </select>
-                        <select aria-label="Field step" value={field.stepId || ""} onChange={(event) => patchField(index,{stepId:event.target.value||null})}>
-                          <option value="">Requester submission</option>
-                          {draft.workflowSteps.map((step)=><option value={step.id} key={step.id}>{step.name}</option>)}
-                        </select>
+                      <header className="field-card-header">
+                        <div>
+                          <span>{index + 1}</span>
+                          <strong>Field {index + 1}</strong>
+                        </div>
                         <label className="check">
                           <input
                             type="checkbox"
@@ -480,6 +447,7 @@ export function FormBuilder() {
                           Required
                         </label>
                         <button
+                          className="field-delete"
                           type="button"
                           aria-label="Remove field"
                           onClick={() =>
@@ -493,15 +461,60 @@ export function FormBuilder() {
                         >
                           <IconTrash size={17} />
                         </button>
+                      </header>
+                      <div className="field-settings-grid">
+                        <label>
+                          Field label
+                          <input
+                            value={field.label}
+                            onChange={(event) =>
+                              patchField(index, {
+                                label: event.target.value,
+                                id: (
+                                  slug(event.target.value).replaceAll("-", "_") ||
+                                  `field_${index + 1}`
+                                ).slice(0, 50),
+                              })
+                            }
+                          />
+                        </label>
+                        <label>
+                          Field ID
+                          <input readOnly className="readonly" value={field.id} />
+                        </label>
+                        <label>
+                          Field type
+                          <select
+                            value={field.type}
+                            onChange={(event) =>
+                              patchField(index, {
+                                type: event.target.value as FieldType,
+                              })
+                            }
+                          >
+                            {fieldTypes.map((type) => (
+                              <option key={type}>{type}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Completed by
+                          <select value={field.stepId || ""} onChange={(event) => patchField(index,{stepId:event.target.value||null})}>
+                            <option value="">Requester submission</option>
+                            {draft.workflowSteps.map((step)=><option value={step.id} key={step.id}>{step.name}</option>)}
+                          </select>
+                        </label>
                       </div>
-                      <textarea
-                        aria-label="Field description"
-                        placeholder="Help text or instructions"
-                        value={field.description}
-                        onChange={(event) =>
-                          patchField(index, { description: event.target.value })
-                        }
-                      />
+                      <label className="field-help">
+                        Help text or instructions
+                        <textarea
+                          placeholder="Explain what information should be entered in this field."
+                          value={field.description}
+                          onChange={(event) =>
+                            patchField(index, { description: event.target.value })
+                          }
+                        />
+                      </label>
                       {["select", "radio"].includes(field.type) && (
                         <textarea
                           className="options"

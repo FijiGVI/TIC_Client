@@ -1,6 +1,6 @@
 'use client';
 
-import { IconCheck, IconChevronRight, IconFileText, IconX } from '@tabler/icons-react';
+import { IconCheck, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { api } from '@/lib/api';
@@ -91,5 +91,32 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
     finally { setSaving(false); }
   };
 
-  return <div className="modal-backdrop" onMouseDown={() => !saving && onClose()}><section className="modal new-request-modal" role="dialog" aria-modal="true" aria-labelledby="new-request-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" aria-label="Close new request" onClick={onClose}><IconX size={21} /></button>{success ? <div className="modal-success"><span><IconCheck size={30} /></span><p className="eyebrow">Request received</p><h2 id="new-request-title">You’re all set.</h2><p>A confirmation email has been queued.</p><strong>{success}</strong><button className="primary" type="button" onClick={onClose}>View my requests</button></div> : <><header className="modal-heading"><p className="eyebrow">Employee services</p><h2 id="new-request-title">New request</h2><p>Choose a service and provide the details the team needs.</p></header>{error && <div className="alert" role="alert">{error}</div>}<div className="request-composer modal-composer"><aside><h3>Services</h3>{groups.map((group) => <div key={group}><h4>{group}</h4>{forms.filter((form) => form.groupName === group).map((form) => <button type="button" className={form.id === formId ? 'selected' : ''} key={form.id} onClick={() => { setFormId(form.id); setResponses({}); setFieldErrors({}); setError(''); }}><IconFileText size={18} /><span>{form.name}</span><IconChevronRight size={16} /></button>)}</div>)}</aside><div className="modal-request-form">{selected ? <form noValidate onSubmit={submit}><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p><label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label><div className="dynamic-fields">{selected.fields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div><button className="primary" disabled={saving}>{saving ? 'Submitting…' : 'Submit request'}</button></form> : <div className="empty"><h3>No request forms available</h3></div>}</div></div></>}</section></div>;
+  return (
+    <div className="modal-backdrop" onMouseDown={() => !saving && onClose()}>
+      <section className="modal new-request-modal" role="dialog" aria-modal="true" aria-labelledby="new-request-title" onMouseDown={(event) => event.stopPropagation()}>
+        <button className="modal-close" type="button" aria-label="Close new request" onClick={onClose}><IconX size={21} /></button>
+        {success ? (
+          <div className="modal-success"><span><IconCheck size={30} /></span><p className="eyebrow">Request received</p><h2 id="new-request-title">You’re all set.</h2><p>A confirmation email has been queued.</p><strong>{success}</strong><button className="primary" type="button" onClick={onClose}>View my requests</button></div>
+        ) : (
+          <>
+            <header className="modal-heading"><p className="eyebrow">Employee services</p><h2 id="new-request-title">New request</h2><p>Choose a service and provide the details the team needs.</p></header>
+            <div className="new-request-scroll-area">
+              {error && <div className="alert" role="alert">{error}</div>}
+              <div className="modal-request-form">
+                {selected ? (
+                  <form noValidate onSubmit={submit}>
+                    <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { setFormId(event.target.value); setResponses({}); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
+                    <div className="selected-service-summary"><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p></div>
+                    <label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
+                    <div className="dynamic-fields">{selected.fields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div>
+                    <button className="primary" disabled={saving}>{saving ? 'Submitting…' : 'Submit request'}</button>
+                  </form>
+                ) : <div className="empty"><h3>No request forms available</h3></div>}
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
 }

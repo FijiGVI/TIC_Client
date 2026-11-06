@@ -12,7 +12,6 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/Pagination";
 import { roleDetails, roles } from "@/lib/access-control";
 import { api } from "@/lib/api";
-import { sendEmail } from "@/lib/email";
 import type {
   ManagedUser,
   PaginationMeta,
@@ -71,19 +70,8 @@ export default function UsersPage() {
     setError("");
     try {
       await api.post("/users", draft);
-      let emailWarning = "";
-      try {
-        await sendEmail({
-          to: draft.email,
-          subject: "Your TIC account is ready",
-          message: `Your TIC account has been created. Sign in with ${draft.email} using this temporary password: ${draft.password}. You will be asked to change it after signing in.`,
-        });
-      } catch (reason) {
-        emailWarning = reason instanceof Error ? ` User created, but ${reason.message.toLowerCase()}.` : " User created, but the welcome email could not be sent.";
-      }
       setDraft(initialUser);
       await load();
-      if (emailWarning) setError(emailWarning.trim());
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to create user",

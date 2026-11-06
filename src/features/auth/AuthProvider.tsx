@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     register: async () => {
-      throw new Error('Accounts are managed in ACT. Sign in with your existing ACT account.');
+      throw new Error('Accounts are managed in ACT. Login with your existing ACT account.');
     },
     loginWithMicrosoft: async (idToken) => {
       const session = await actApi.post<AuthSession | MicrosoftRequesterSession>('/auth/microsoft', { idToken });

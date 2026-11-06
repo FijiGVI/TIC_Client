@@ -28,7 +28,7 @@ export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
       await login(identifier, password);
       router.replace('/dashboard');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Sign-in failed');
+      setError(reason instanceof Error ? reason.message : 'Login failed');
     } finally {
       setSubmitting(false);
     }
@@ -55,13 +55,13 @@ export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
       <section className="auth-panel">
         <form className="auth-card" onSubmit={submit}>
           <p className="eyebrow">Welcome to TIC</p>
-          <h2>{mode === 'register' ? 'ACT manages your account' : 'Sign in with your ACT account'}</h2>
+          <h2>{mode === 'register' ? 'ACT manages your account' : 'Login to your ACT account'}</h2>
           <p>Access your requests and approvals.</p>
           {error && <div className="alert" role="alert">{error}</div>}
-          <label>Email or employee ID<input required autoComplete="username" value={identifier} onChange={(event) => setIdentifier(event.target.value)} /></label>
+          <label>Email<input required type="email" autoComplete="email" value={identifier} onChange={(event) => setIdentifier(event.target.value)} /></label>
           <label>Password<span className="password-input"><input required type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <IconEyeOff size={19} /> : <IconEye size={19} />}</button></span></label>
           <Link className="forgot-link" href="/forgot-password">Forgot password?</Link>
-          <button className="primary" disabled={submitting}>{submitting ? 'Please wait…' : 'Sign in'}<IconArrowRight size={18} /></button>
+          <button className="primary" disabled={submitting}>{submitting ? 'Please wait…' : 'Login'}<IconArrowRight size={18} /></button>
           <div className="divider"><span>or</span></div>
           <button className="secondary" type="button" disabled={submitting} onClick={() => void microsoft()}><IconBrandWindows size={19} />Continue with Microsoft</button>
           <p className="auth-switch">Use the same credentials you use for ACT.</p>

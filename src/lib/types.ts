@@ -99,6 +99,12 @@ export type ServiceRequest = {
   formId: string;
   departmentId: string | null;
   departmentSnapshot: DepartmentSnapshot | null;
+  ticketType: "request" | "issue";
+  category: string;
+  subject: string;
+  priority: "low" | "normal" | "high" | "urgent";
+  affectedService: string | null;
+  description: string | null;
   formSnapshot: RequestForm;
   responses: Record<string, unknown>;
   status: string;

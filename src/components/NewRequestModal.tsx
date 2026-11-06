@@ -58,6 +58,12 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [departmentId, setDepartmentId] = useState('');
+  const [ticketType, setTicketType] = useState<'request' | 'issue'>('request');
+  const [category, setCategory] = useState('service_request');
+  const [subject, setSubject] = useState('');
+  const [priority, setPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal');
+  const [affectedService, setAffectedService] = useState('');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
@@ -82,10 +88,10 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
     if (!selected || !user) return;
     const errors = Object.fromEntries(selected.fields.map((field) => [field.id, validateField(field, responses[field.id])] as const).filter(([, message]) => Boolean(message)));
     setFieldErrors(errors);
-    if (!departmentId || Object.keys(errors).length) { setError('Please complete the department and correct the highlighted fields.'); return; }
+    if (!departmentId || !subject.trim() || (ticketType === 'issue' && !description.trim()) || Object.keys(errors).length) { setError('Please complete the required ticket information and correct the highlighted fields.'); return; }
     setSaving(true); setError('');
     try {
-      const result = await api.post<{ data: { referenceNumber: string } }>('/requests', { formId, departmentId, responses });
+      const result = await api.post<{ data: { referenceNumber: string } }>('/requests', { formId, departmentId, ticketType, category, subject, priority, affectedService, description, responses });
       setSuccess(result.data.referenceNumber); onSubmitted();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to submit request'); }
     finally { setSaving(false); }
@@ -99,14 +105,17 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
           <div className="modal-success"><span><IconCheck size={30} /></span><p className="eyebrow">Request received</p><h2 id="new-request-title">You’re all set.</h2><p>We’ll email you as the request progresses.</p><strong>{success}</strong><button className="primary" type="button" onClick={onClose}>View my requests</button></div>
         ) : (
           <>
-            <header className="modal-heading"><p className="eyebrow">Employee services</p><h2 id="new-request-title">New request</h2><p>Choose a service and provide the details the team needs.</p></header>
+            <header className="modal-heading"><p className="eyebrow">Employee services</p><h2 id="new-request-title">Create a ticket</h2><p>Request a service or report an issue for the team to resolve.</p></header>
             <div className="new-request-scroll-area">
               {error && <div className="alert" role="alert">{error}</div>}
               <div className="modal-request-form">
                 {selected ? (
                   <form noValidate onSubmit={submit}>
+                    <div className="ticket-kind" role="group" aria-label="Ticket type"><button type="button" className={ticketType === 'request' ? 'selected' : ''} onClick={() => { setTicketType('request'); setCategory('service_request'); }}>Service request</button><button type="button" className={ticketType === 'issue' ? 'selected' : ''} onClick={() => { setTicketType('issue'); setCategory('incident'); }}>Report an issue</button></div>
                     <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { setFormId(event.target.value); setResponses({}); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
                     <div className="selected-service-summary"><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p></div>
+                    <div className="ticket-basics"><label><span>Subject</span><small>Briefly summarize what you need.</small><input required maxLength={200} value={subject} onChange={(event) => setSubject(event.target.value)} /></label><label><span>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)}>{ticketType === 'request' ? <><option value="service_request">Service request</option><option value="data_correction">Data correction</option><option value="inquiry">General inquiry</option><option value="other">Other</option></> : <><option value="incident">Incident or system problem</option><option value="bug">Bug report</option><option value="access">Access issue</option><option value="hardware">Equipment or hardware</option><option value="complaint">Complaint or concern</option><option value="suggestion">Improvement suggestion</option><option value="other">Other</option></>}</select></label><label><span>Priority</span><small>Select the business impact.</small><select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label><span>Affected service</span><small>Optional application, device, or service.</small><input maxLength={160} value={affectedService} onChange={(event) => setAffectedService(event.target.value)} /></label></div>
+                    {ticketType === 'issue' && <label><span>Issue description</span><small>Explain what happened, what you expected, and its impact.</small><textarea required maxLength={5000} value={description} onChange={(event) => setDescription(event.target.value)} /></label>}
                     <label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
                     <div className="dynamic-fields">{selected.fields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div>
                     <button className="primary" disabled={saving}>{saving ? 'Submitting…' : 'Submit request'}</button>

@@ -35,6 +35,8 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
   const [departmentId, setDepartmentId] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
+  const [ticketType, setTicketType] = useState("");
+  const [priority, setPriority] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -47,6 +49,8 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
       if (managed && departmentId) parameters.set("departmentId", departmentId);
       if (managed && createdFrom) parameters.set("createdFrom", new Date(createdFrom).toISOString());
       if (managed && createdTo) parameters.set("createdTo", new Date(createdTo).toISOString());
+      if (managed && ticketType) parameters.set("ticketType", ticketType);
+      if (managed && priority) parameters.set("priority", priority);
       const response = await api.get<{
         data: ServiceRequest[];
         meta: PaginationMeta;
@@ -62,7 +66,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
     } finally {
       setLoading(false);
     }
-  }, [createdFrom, createdTo, departmentId, filter, managed, page, query]);
+  }, [createdFrom, createdTo, departmentId, filter, managed, page, priority, query, ticketType]);
 
   useEffect(() => {
     if (!managed) return;
@@ -99,11 +103,11 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
           <p className="eyebrow">
             {managed ? "Team workspace" : "Your workspace"}
           </p>
-          <h1>{managed ? "Service requests" : "My requests"}</h1>
+          <h1>{managed ? "Tickets" : "My tickets"}</h1>
           <p>
             {managed
-              ? "Review assigned work and keep every request moving."
-              : "Track requests from submission through completion."}
+              ? "Review service requests and reported issues in one workspace."
+              : "Track your requests and reported issues through completion."}
           </p>
         </div>
         <div className="page-actions">
@@ -118,7 +122,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
           {canCreate && (
             <button className="primary" type="button" onClick={() => setCreateOpen(true)}>
               <IconFilePlus size={18} />
-              New request
+              Create ticket
             </button>
           )}
         </div>
@@ -173,10 +177,12 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
         </div>
         {managed && <div className="request-filters"><label>Department<select value={departmentId} onChange={(event) => { setDepartmentId(event.target.value); setPage(1); }}><option value="">All departments</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ""}{department.businessUnit}</option>)}</select></label><label>Submitted from<input type="datetime-local" value={createdFrom} onChange={(event) => { setCreatedFrom(event.target.value); setPage(1); }} /></label><label>Submitted until<input type="datetime-local" value={createdTo} min={createdFrom} onChange={(event) => { setCreatedTo(event.target.value); setPage(1); }} /></label><button className="secondary" type="button" disabled={!departmentId && !createdFrom && !createdTo} onClick={() => { setDepartmentId(""); setCreatedFrom(""); setCreatedTo(""); setPage(1); }}>Clear filters</button></div>}
 
+        {managed && <div className="ticket-classification-filters"><label>Ticket type<select value={ticketType} onChange={(event) => { setTicketType(event.target.value); setPage(1); }}><option value="">All types</option><option value="request">Service requests</option><option value="issue">Reported issues</option></select></label><label>Priority<select value={priority} onChange={(event) => { setPriority(event.target.value); setPage(1); }}><option value="">All priorities</option><option value="urgent">Urgent</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></label><button type="button" className="secondary" disabled={!ticketType && !priority} onClick={() => { setTicketType(""); setPriority(""); setPage(1); }}>Clear type filters</button></div>}
+
         <div className="request-table">
           <div className={`request-row heading ${managed ? "managed" : ""}`}>
             <span>Reference</span>
-            <span>Request</span>
+            <span>Ticket</span>
             {managed && <span>Requester</span>}
             {managed && <span>Department</span>}
             <span>Status</span>
@@ -198,7 +204,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
               >
                 <strong>{request.referenceNumber}</strong>
                 <span className="request-name">
-                  {request.formSnapshot.name}
+                  <b>{request.subject || request.formSnapshot.name}</b><small>{request.ticketType === "issue" ? "Reported issue" : "Service request"} · {request.priority || "normal"} priority</small>
                 </span>
                 {managed && (
                   <span>
@@ -249,7 +255,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
               ×
             </button>
             <p className="eyebrow">{selected.referenceNumber}</p>
-            <h2 id="request-title">{selected.formSnapshot.name}</h2>
+            <h2 id="request-title">{selected.subject || selected.formSnapshot.name}</h2>
             <div className="detail-meta">
               <span className={`status ${selected.status}`}>
                 {statusLabel(selected.status)}
@@ -260,6 +266,11 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
             </div>
             <h3>Request details</h3>
             <dl>
+              <div><dt>Ticket type</dt><dd>{selected.ticketType === "issue" ? "Reported issue" : "Service request"}</dd></div>
+              <div><dt>Category</dt><dd>{selected.category?.replaceAll("_", " ") || "Not specified"}</dd></div>
+              <div><dt>Priority</dt><dd>{selected.priority || "Normal"}</dd></div>
+              <div><dt>Affected service</dt><dd>{selected.affectedService || selected.formSnapshot.name}</dd></div>
+              {selected.description && <div><dt>Description</dt><dd>{selected.description}</dd></div>}
               {selected.departmentSnapshot && <div><dt>Department</dt><dd>{selected.departmentSnapshot.code ? `${selected.departmentSnapshot.code} — ` : ""}{selected.departmentSnapshot.name}</dd></div>}
               {Object.entries(selected.responses).map(([key, value]) => (
                 <div key={key}>

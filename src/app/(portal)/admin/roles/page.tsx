@@ -75,38 +75,39 @@ export default function RolesPage() {
         <IconShieldLock size={20} />
         <div><strong>Permissions apply to everyone with that role.</strong><span>Changes take effect after saving and may affect access immediately.</span></div>
       </div>
-      <div className="role-editor-grid" aria-busy={loading}>
-        {roles.map((role) => {
-          const entry = matrix.find((item) => item.role === role);
-          return (
-            <section className="surface role-editor-card" key={role}>
-              <header>
-                <div><h2>{roleDetails[role].label}</h2><p>{roleDetails[role].description}</p></div>
-                <span>{entry?.permissions.length ?? 0} enabled</span>
-              </header>
-              <div className="role-permission-list">
-                {permissionDetails.map((permission, index) => (
-                  <label className="permission-option" key={permission.value}>
-                    <input
-                      type="checkbox"
-                      disabled={loading || !entry || savingRole !== null}
-                      checked={entry?.permissions.includes(permission.value) ?? false}
-                      onChange={() => togglePermission(role, permission.value)}
-                    />
-                    <span><strong>{permission.label}</strong><small>{permission.description}</small>{index === 0 || permissionDetails[index - 1].group !== permission.group ? <em>{permission.group}</em> : null}</span>
-                  </label>
-                ))}
-              </div>
-              <footer>
-                <span role="status">{savedRole === role ? 'Changes saved' : ''}</span>
-                <button className="primary" type="button" disabled={!entry || savingRole !== null} onClick={() => void saveRole(role)}>
-                  <IconDeviceFloppy size={17} />{savingRole === role ? 'Saving…' : `Save ${roleDetails[role].label}`}
-                </button>
-              </footer>
-            </section>
-          );
-        })}
-      </div>
+      <section className="surface roles-table-surface" aria-busy={loading}>
+        <div className="roles-table-scroll">
+          <table className="roles-table">
+            <thead>
+              <tr>
+                <th scope="col">Permission</th>
+                {roles.map((role) => {
+                  const entry = matrix.find((item) => item.role === role);
+                  return <th scope="col" key={role}><strong>{roleDetails[role].label}</strong><small>{entry?.permissions.length ?? 0} enabled</small></th>;
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {permissionDetails.map((permission, index) => <tr key={permission.value} className={index === 0 || permissionDetails[index - 1].group !== permission.group ? 'group-start' : ''}>
+                <th scope="row"><span>{permission.group}</span><strong>{permission.label}</strong><small>{permission.description}</small></th>
+                {roles.map((role) => {
+                  const entry = matrix.find((item) => item.role === role);
+                  return <td key={role}><label><input type="checkbox" disabled={loading || !entry || savingRole !== null} checked={entry?.permissions.includes(permission.value) ?? false} onChange={() => togglePermission(role, permission.value)} /><span className="sr-only">Allow {roleDetails[role].label} to {permission.label.toLowerCase()}</span></label></td>;
+                })}
+              </tr>)}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row">Save changes</th>
+                {roles.map((role) => {
+                  const entry = matrix.find((item) => item.role === role);
+                  return <td key={role}><button className="secondary compact" type="button" disabled={!entry || savingRole !== null} onClick={() => void saveRole(role)}><IconDeviceFloppy size={15} />{savingRole === role ? 'Saving…' : 'Save'}<span className="sr-only"> {roleDetails[role].label}</span></button><small role="status">{savedRole === role ? 'Saved' : ''}</small></td>;
+                })}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
     </>
   );
 }

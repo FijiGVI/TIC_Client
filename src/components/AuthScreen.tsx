@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { startMicrosoftSignIn } from '@/features/auth/microsoftSso';
+import { takeSessionMessage } from '@/lib/api';
 
 export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
   const { user, loading, login } = useAuth();
@@ -19,6 +20,13 @@ export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
   useEffect(() => {
     if (!loading && user) router.replace('/dashboard');
   }, [loading, router, user]);
+
+  useEffect(() => {
+    const sessionMessage = takeSessionMessage();
+    // The message is produced by the browser-only session-expiry event.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (sessionMessage) setError(sessionMessage);
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();

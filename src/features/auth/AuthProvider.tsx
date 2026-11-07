@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { actApi, api, hasStoredSession, logoutSession, restoreTokens, setTokens } from '@/lib/api';
+import { actApi, api, hasStoredSession, logoutSession, restoreTokens, SESSION_EXPIRED_EVENT, setTokens } from '@/lib/api';
 import type { Role, TicPermission, User } from '@/lib/types';
 
 type ActUser = { id: number; email: string; firstName?: string | null; lastName?: string | null; role: string; userRole?: { name?: string | null } | null; shouldChangePassword?: boolean };
@@ -77,6 +77,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [refreshUser]);
+
+  useEffect(() => {
+    const sessionExpired = () => {
+      setUser(null);
+      router.replace('/login');
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, sessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, sessionExpired);
+  }, [router]);
 
   const value = useMemo<AuthContextValue>(() => ({
     user,

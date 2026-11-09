@@ -253,9 +253,9 @@ img, svg { max-width: 100%; }
   .users-table td::before { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
   .users-table:not(.role-directory-table) td:nth-child(1)::before { content: 'Name'; }
   .users-table:not(.role-directory-table) td:nth-child(2)::before { content: 'Email'; }
-  .users-table:not(.role-directory-table) td:nth-child(3)::before { content: 'Role'; }
-  .users-table:not(.role-directory-table) td:nth-child(4)::before { content: 'Status'; }
-  .users-table:not(.role-directory-table) td:nth-child(5)::before { content: 'Updated'; }
+  .users-table:not(.role-directory-table) td:nth-child(3)::before { content: 'Organization'; }
+  .users-table:not(.role-directory-table) td:nth-child(4)::before { content: 'Roles'; }
+  .users-table:not(.role-directory-table) td:nth-child(5)::before { content: 'Status'; }
   .users-table:not(.role-directory-table) td:nth-child(6)::before { content: 'Actions'; }
   .role-directory-table td:nth-child(1)::before { content: 'Role'; }
   .role-directory-table td:nth-child(2)::before { content: 'Key'; }

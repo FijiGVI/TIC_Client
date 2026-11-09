@@ -106,6 +106,15 @@ const helpByPath: Record<string, HelpContent> = {
       "Review the retrieved table to confirm department codes and names.",
     ],
   },
+  "/admin/settings": {
+    title: "System settings guide",
+    summary: "Configure security behavior shared by everyone using the ticketing portal.",
+    steps: [
+      "Choose how many inactive minutes are allowed before automatic logout.",
+      "Use a shorter timeout for shared devices and a longer timeout only for trusted workstations.",
+      "Save the setting. Users receive it when they next load or refresh the portal.",
+    ],
+  },
   "/form-request": {
     title: "Request form guide",
     summary: "Complete the selected service form and submit it to the appropriate team.",

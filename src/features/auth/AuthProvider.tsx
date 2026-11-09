@@ -8,8 +8,8 @@ import type { Role, TicPermission, User } from '@/lib/types';
 type ActUser = { id: number; email: string; firstName?: string | null; lastName?: string | null; role: string; userRole?: { name?: string | null } | null; shouldChangePassword?: boolean };
 type AuthSession = { accessToken: string; refreshToken?: string; user: ActUser };
 type MicrosoftRequesterSession = { accessToken: string; identity: { email: string; name: string; linkedUserId: number | null } };
-type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[] };
-type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<void>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string): Promise<void>; logout(): Promise<void>; refreshUser(): Promise<void> };
+type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[]; roles?: Role[]; organizationType?: string | null; organizationName?: string | null };
+type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<void>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string): Promise<void>; logout(): Promise<void>; refreshUser(): Promise<void>; switchRole(role: Role): Promise<void> };
 
 const defaultPermissions: Record<string, TicPermission[]> = {
   admin: ['users.manage', 'roles.manage', 'forms.manage', 'requests.create', 'requests.read.all', 'requests.update', 'requests.approve'],
@@ -34,6 +34,9 @@ function normalizeUser(user: ActUser, context?: TicContext): User {
     email: user.email,
     name: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
     role,
+    roles: context?.roles || [role],
+    organizationType: context?.organizationType,
+    organizationName: context?.organizationName,
     permissions: context?.permissions || defaultPermissions[role] || [],
     mustChangePassword: Boolean(user.shouldChangePassword),
   };
@@ -45,6 +48,9 @@ function normalizeTicActor(context: TicContext): User {
     email: context.actor.email,
     name: context.actor.name || context.actor.email,
     role: context.actor.role,
+    roles: context.roles || [context.actor.role],
+    organizationType: context.organizationType,
+    organizationName: context.organizationName,
     permissions: context.permissions,
     mustChangePassword: false,
   };
@@ -116,6 +122,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await logoutSession().catch(() => setTokens(null));
       setUser(null);
       router.replace('/login');
+    },
+    switchRole: async (role) => {
+      const response = await api.post<{ accessToken: string }>('/auth/switch-role', { role });
+      setTokens(response);
+      await refreshUser();
+      router.replace('/dashboard');
     },
     refreshUser,
   }), [loading, refreshUser, router, user]);

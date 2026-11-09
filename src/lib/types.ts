@@ -14,6 +14,9 @@ export type User = {
   email: string;
   name: string;
   role: Role;
+  roles: Role[];
+  organizationType?: string | null;
+  organizationName?: string | null;
   permissions: TicPermission[];
   mustChangePassword: boolean;
 };
@@ -144,6 +147,9 @@ export type ManagedUser = {
   middleName: string | null;
   lastName: string | null;
   role: Role;
+  roles?: Role[];
+  organizationType?: string | null;
+  organizationName?: string | null;
   active: boolean;
   deactivated: boolean;
   deleted: boolean;

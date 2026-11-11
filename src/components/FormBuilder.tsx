@@ -5,6 +5,7 @@ import {
   IconEye,
   IconPlus,
   IconTrash,
+  IconX,
 } from "@tabler/icons-react";
 import {
   useCallback,
@@ -53,31 +54,57 @@ const blank = (): Draft => ({
   allowedRequesterRoles: ["requester"],
 });
 const initialMeta: PaginationMeta = { page: 1, pageSize: 15, total: 0, totalPages: 1 };
+const nextBuilderId = (prefix: string, existingIds: string[]): string => {
+  let sequence = existingIds.length + 1;
+  while (existingIds.includes(`${prefix}_${sequence}`)) sequence += 1;
+  return `${prefix}_${sequence}`;
+};
 
-function PreviewField({ field }: { field: FormField }) {
+const previewStepApplies = (step: Draft["workflowSteps"][number], responses: Record<string, unknown>): boolean => {
+  const rules = step.condition?.rules || [];
+  if (!rules.length) return true;
+  const matches = rules.map((rule) => {
+    const value = responses[rule.fieldId];
+    const text = value === undefined || value === null ? "" : String(value);
+    if (rule.operator === "equals") return text === rule.value;
+    if (rule.operator === "not_equals") return text !== rule.value;
+    if (rule.operator === "contains") return text.includes(rule.value);
+    if (rule.operator === "is_empty") return text === "" || value === false;
+    return text !== "" && value !== false;
+  });
+  return step.condition?.logic === "or" ? matches.some(Boolean) : matches.every(Boolean);
+};
+
+function PreviewField({ field, value, onChange }: { field: FormField; value: unknown; onChange(value: unknown): void }) {
+  const description = field.description ? <small>{field.description}</small> : null;
+  const label = <>{field.label}{field.required && <span aria-hidden="true"> *</span>}</>;
   if (field.type === "textarea")
     return (
-      <label>
-        {field.label}
-        <textarea disabled placeholder={field.description} />
+      <label className="field-wide">
+        <span>{label}</span>
+        {description}
+        <textarea value={String(value || "")} placeholder={field.description} onChange={(event) => onChange(event.target.value)} />
       </label>
     );
   if (field.type === "select")
     return (
       <label>
-        {field.label}
-        <select disabled>
-          <option>{field.options[0] || "Select one"}</option>
+        <span>{label}</span>
+        {description}
+        <select value={String(value || "")} onChange={(event) => onChange(event.target.value)}>
+          <option value="">Select one</option>
+          {field.options.map((option) => <option key={option}>{option}</option>)}
         </select>
       </label>
     );
   if (field.type === "radio")
     return (
       <fieldset>
-        <legend>{field.label}</legend>
+        <legend>{label}</legend>
+        {description}
         {field.options.map((option) => (
           <label className="radio" key={option}>
-            <input disabled type="radio" />
+            <input type="radio" name={`preview-${field.id}`} checked={value === option} onChange={() => onChange(option)} />
             {option}
           </label>
         ))}
@@ -86,19 +113,21 @@ function PreviewField({ field }: { field: FormField }) {
   if (field.type === "checkbox")
     return (
       <label className="radio">
-        <input disabled type="checkbox" />
-        {field.label}
+        <input type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} />
+        {label}
       </label>
     );
   return (
     <label>
-      {field.label}
+      <span>{label}</span>
+      {description}
       <input
-        disabled
         type={
           field.type === "image" || field.type === "pdf" ? "file" : field.type
         }
+        value={field.type === "image" || field.type === "pdf" ? undefined : String(value || "")}
         placeholder={field.description}
+        onChange={(event) => onChange(event.target.value)}
       />
     </label>
   );
@@ -111,6 +140,10 @@ export function FormBuilder() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [previewResponses, setPreviewResponses] = useState<Record<string, unknown>>({});
+  const [previewStage, setPreviewStage] = useState(0);
+  const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
+  const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
   const [draftStatus, setDraftStatus] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
@@ -167,6 +200,17 @@ export function FormBuilder() {
     () => ("id" in draft ? draft.key : slug(draft.name)),
     [draft],
   );
+  const previewSteps = useMemo(
+    () => draft.workflowSteps.filter((step) => previewStepApplies(step, previewResponses)),
+    [draft.workflowSteps, previewResponses],
+  );
+  const currentPreviewStep = previewStage === 0 ? null : previewSteps[previewStage - 1] || null;
+  const previewFields = draft.fields.filter((field) => currentPreviewStep ? field.stepId === currentPreviewStep.id : !field.stepId);
+  const previewRoleLabel = (role: Role) => roles.find((candidate) => candidate.value === role)?.label || role.replaceAll("_", " ");
+  useEffect(() => {
+    if (previewStage <= previewSteps.length) return;
+    setPreviewStage(previewSteps.length);
+  }, [previewStage, previewSteps.length]);
   const patchField = (index: number, patch: Partial<FormField>) =>
     setDraft((current) => ({
       ...current,
@@ -187,13 +231,15 @@ export function FormBuilder() {
           : field,
       ),
     }));
-  const addField = () =>
+  const addField = () => {
+    const nextIndex = draft.fields.length;
+    const id = nextBuilderId("field", draft.fields.map((field) => field.id));
     setDraft((current) => ({
       ...current,
       fields: [
         ...current.fields,
         {
-          id: `field_${current.fields.length + 1}`,
+          id,
           label: "New field",
           description: "",
           type: "text",
@@ -204,6 +250,28 @@ export function FormBuilder() {
         },
       ],
     }));
+    setEditingFieldIndex(nextIndex);
+  };
+  const addStep = () => {
+    const nextIndex = draft.workflowSteps.length;
+    const id = nextBuilderId("step", draft.workflowSteps.map((step) => step.id));
+    setDraft((current) => ({
+      ...current,
+      workflowSteps: [
+        ...current.workflowSteps,
+        {
+          id,
+          name: "Approval",
+          instructions: "",
+          approverRole: "approver",
+          approverUserId: null,
+          allowedRoles: ["approver"],
+          condition: { logic: "and", rules: [] },
+        },
+      ],
+    }));
+    setEditingStepIndex(nextIndex);
+  };
   const save = async (event?: FormEvent) => {
     event?.preventDefault();
     setSaving(true);
@@ -311,7 +379,10 @@ export function FormBuilder() {
               <button
                 type="button"
                 className="secondary"
-                onClick={() => setPreview((value) => !value)}
+                onClick={() => setPreview((value) => {
+                  if (!value) { setPreviewResponses({}); setPreviewStage(0); }
+                  return !value;
+                })}
               >
                 <IconEye size={17} />
                 {preview ? "Edit form" : "Live preview"}
@@ -319,13 +390,35 @@ export function FormBuilder() {
             </div>
             {preview ? (
               <div className="form-preview">
+                <div className="preview-mode-banner"><span>Live preview</span><small>Try the fields and workflow. Preview values are not saved.</small></div>
                 <p className="eyebrow">{draft.groupName}</p>
                 <h2>{draft.name || "Untitled form"}</h2>
                 <p>{draft.description}</p>
+                <nav className="preview-workflow" aria-label="Preview workflow">
+                  <button type="button" className={previewStage === 0 ? "active" : ""} onClick={() => setPreviewStage(0)}>
+                    <span>1</span><strong>Request details</strong><small>Requester</small>
+                  </button>
+                  {previewSteps.map((step, index) => {
+                    const stepRoles = step.allowedRoles?.length ? step.allowedRoles : [step.approverRole];
+                    return <button type="button" className={previewStage === index + 1 ? "active" : ""} onClick={() => setPreviewStage(index + 1)} key={step.id}>
+                      <span>{index + 2}</span><strong>{step.name || `Step ${index + 1}`}</strong><small>{stepRoles.map(previewRoleLabel).join(", ")}</small>
+                    </button>;
+                  })}
+                </nav>
+                <div className="preview-current-step">
+                  <div><small>Current step</small><strong>{currentPreviewStep?.name || "Request details"}</strong></div>
+                  <div><small>Acting role</small><strong>{currentPreviewStep ? (currentPreviewStep.allowedRoles?.length ? currentPreviewStep.allowedRoles : [currentPreviewStep.approverRole]).map(previewRoleLabel).join(", ") : "Requester"}</strong></div>
+                </div>
+                {currentPreviewStep?.instructions && <p className="preview-step-instructions">{currentPreviewStep.instructions}</p>}
                 <div className="dynamic-fields">
-                  {draft.fields.map((field) => (
-                    <PreviewField field={field} key={field.id} />
+                  {previewFields.map((field) => (
+                    <PreviewField field={field} key={field.id} value={previewResponses[field.id]} onChange={(value) => setPreviewResponses((current) => ({ ...current, [field.id]: value }))} />
                   ))}
+                </div>
+                {!previewFields.length && <div className="preview-empty">No fields are assigned to this step.</div>}
+                <div className="preview-navigation">
+                  <button type="button" className="secondary" disabled={previewStage === 0} onClick={() => setPreviewStage((stage) => Math.max(0, stage - 1))}>Previous step</button>
+                  <button type="button" className="primary" disabled={previewStage >= previewSteps.length} onClick={() => setPreviewStage((stage) => Math.min(previewSteps.length, stage + 1))}>Next step</button>
                 </div>
               </div>
             ) : (
@@ -414,17 +507,31 @@ export function FormBuilder() {
                     <h3>Form fields</h3>
                     <p>Fields appear in this order to requesters.</p>
                   </div>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={addField}
-                  >
-                    <IconPlus size={17} />
-                    Add field
-                  </button>
                 </div>
-                <div className="field-editor improved">
+                <div className="builder-accordion">
+                  {draft.fields.map((field, index) => {
+                    const stepName = field.stepId ? draft.workflowSteps.find((step) => step.id === field.stepId)?.name || "Unknown step" : "Requester submission";
+                    return <details key={field.id || index}>
+                      <summary>
+                        <span className="builder-item-number">{index + 1}</span>
+                        <span className="builder-item-title"><strong>{field.label || `Field ${index + 1}`}</strong><small>{field.type} · {stepName}{field.required ? " · Required" : ""}</small></span>
+                        <button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingFieldIndex(index); }}>Edit</button>
+                      </summary>
+                      <div className="builder-item-details">
+                        <p>{field.description || "No help text provided."}</p>
+                        {field.options.length > 0 && <p><strong>Options:</strong> {field.options.join(", ")}</p>}
+                        <p><strong>Field ID:</strong> <code>{field.id}</code></p>
+                      </div>
+                    </details>;
+                  })}
+                  {!draft.fields.length && <div className="builder-empty-list">No fields yet. Add the first field to begin.</div>}
+                </div>
+                {editingFieldIndex !== null && draft.fields[editingFieldIndex] && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => setEditingFieldIndex(null)}>
+                  <section className="modal builder-config-modal" role="dialog" aria-modal="true" aria-labelledby="field-editor-title" onMouseDown={(event) => event.stopPropagation()}>
+                    <header className="builder-modal-heading"><div><p className="eyebrow">Form field</p><h2 id="field-editor-title">Edit {draft.fields[editingFieldIndex].label || `Field ${editingFieldIndex + 1}`}</h2></div><button type="button" aria-label="Close field editor" onClick={() => setEditingFieldIndex(null)}><IconX size={20}/></button></header>
+                    <div className="builder-modal-body"><div className="field-editor improved">
                   {draft.fields.map((field, index) => (
+                    index !== editingFieldIndex ? null :
                     <article key={index}>
                       <header className="field-card-header">
                         <div>
@@ -447,14 +554,15 @@ export function FormBuilder() {
                           className="field-delete"
                           type="button"
                           aria-label="Remove field"
-                          onClick={() =>
+                          onClick={() => {
                             setDraft({
                               ...draft,
                               fields: draft.fields.filter(
                                 (_, currentIndex) => currentIndex !== index,
                               ),
-                            })
-                          }
+                            });
+                            setEditingFieldIndex(null);
+                          }}
                         >
                           <IconTrash size={17} />
                         </button>
@@ -634,39 +742,36 @@ export function FormBuilder() {
                       )}
                     </article>
                   ))}
-                </div>
+                    </div></div>
+                    <footer className="builder-modal-footer"><button type="button" className="primary" onClick={() => setEditingFieldIndex(null)}>Done</button></footer>
+                  </section>
+                </div>}
                 <div className="section-title">
                   <div>
                     <h3>Approval workflow</h3>
                     <p>Each step is completed sequentially.</p>
                   </div>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() =>
-                      setDraft({
-                        ...draft,
-                        workflowSteps: [
-                          ...draft.workflowSteps,
-                          {
-                            id: `step_${draft.workflowSteps.length + 1}`,
-                            name: "Approval",
-                            instructions: "",
-                            approverRole: "approver",
-                            approverUserId: null,
-                            allowedRoles: ["approver"],
-                            condition: { logic: "and", rules: [] },
-                          },
-                        ],
-                      })
-                    }
-                  >
-                    <IconPlus size={17} />
-                    Add step
-                  </button>
                 </div>
-                <div className="field-editor improved">
+                <div className="builder-accordion">
+                  {draft.workflowSteps.map((step, index) => {
+                    const stepRoles = step.allowedRoles?.length ? step.allowedRoles : [step.approverRole];
+                    return <details key={step.id}>
+                      <summary>
+                        <span className="builder-item-number">{index + 1}</span>
+                        <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small>{stepRoles.map(previewRoleLabel).join(", ")} · {(step.condition?.rules || []).length} condition(s)</small></span>
+                        <button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingStepIndex(index); }}>Edit</button>
+                      </summary>
+                      <div className="builder-item-details"><p>{step.instructions || "No instructions provided."}</p><p><strong>Completed by:</strong> {stepRoles.map(previewRoleLabel).join(", ")}</p></div>
+                    </details>;
+                  })}
+                  {!draft.workflowSteps.length && <div className="builder-empty-list">No approval steps. Requests will remain submitted without a review workflow.</div>}
+                </div>
+                {editingStepIndex !== null && draft.workflowSteps[editingStepIndex] && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => setEditingStepIndex(null)}>
+                  <section className="modal builder-config-modal" role="dialog" aria-modal="true" aria-labelledby="step-editor-title" onMouseDown={(event) => event.stopPropagation()}>
+                    <header className="builder-modal-heading"><div><p className="eyebrow">Approval workflow</p><h2 id="step-editor-title">Edit {draft.workflowSteps[editingStepIndex].name || `Step ${editingStepIndex + 1}`}</h2></div><button type="button" aria-label="Close step editor" onClick={() => setEditingStepIndex(null)}><IconX size={20}/></button></header>
+                    <div className="builder-modal-body"><div className="field-editor improved">
                   {draft.workflowSteps.map((step, index) => (
+                    index !== editingStepIndex ? null :
                     <article key={step.id}>
                       <div className="field-row workflow-config-row">
                         <span>{index + 1}</span>
@@ -687,14 +792,17 @@ export function FormBuilder() {
                         <div className="step-role-list"><small>Roles allowed to complete this step</small>{roles.map((role)=>{const checked=(step.allowedRoles||[step.approverRole]).includes(role.value);return <label className="check" key={role.value}><input type="checkbox" checked={checked} onChange={(event)=>{const current=step.allowedRoles||[step.approverRole];const allowedRoles=event.target.checked?[...new Set([...current,role.value])]:current.filter((value)=>value!==role.value);if(allowedRoles.length)patchStep(index,{allowedRoles,approverRole:allowedRoles[0]});}}/>{role.label}</label>;})}</div>
                         <button
                           type="button"
-                          onClick={() =>
+                          aria-label="Remove workflow step"
+                          onClick={() => {
                             setDraft({
                               ...draft,
                               workflowSteps: draft.workflowSteps.filter(
                                 (_, currentIndex) => currentIndex !== index,
                               ),
-                            })
-                          }
+                              fields: draft.fields.map((field) => field.stepId === step.id ? { ...field, stepId: null } : field),
+                            });
+                            setEditingStepIndex(null);
+                          }}
                         >
                           <IconTrash size={17} />
                         </button>
@@ -712,6 +820,13 @@ export function FormBuilder() {
                       <div className="step-condition-editor"><div><strong>Conditions (show this step only if…)</strong><select value={step.condition?.logic||"and"} onChange={(event)=>patchStep(index,{condition:{logic:event.target.value as "and"|"or",rules:step.condition?.rules||[]}})}><option value="and">All conditions match (AND)</option><option value="or">Any condition matches (OR)</option></select></div>{(step.condition?.rules||[]).map((rule,ruleIndex)=><div className="condition-rule" key={ruleIndex}><select value={rule.fieldId} onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,fieldId:event.target.value};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}><option value="">Select an earlier field</option>{draft.fields.filter((field)=>!field.stepId||draft.workflowSteps.findIndex((candidate)=>candidate.id===field.stepId)<index).map((field)=><option value={field.id} key={field.id}>{field.label}</option>)}</select><select value={rule.operator} onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,operator:event.target.value as typeof rule.operator};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="contains">Contains</option><option value="is_empty">Is empty</option><option value="is_not_empty">Is not empty</option></select>{!rule.operator.includes("empty")&&<input value={rule.value} placeholder="Value" onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,value:event.target.value};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}/>}<button type="button" aria-label="Remove condition" onClick={()=>patchStep(index,{condition:{logic:step.condition?.logic||"and",rules:(step.condition?.rules||[]).filter((_,current)=>current!==ruleIndex)}})}><IconTrash size={15}/></button></div>)}<button type="button" className="secondary compact" onClick={()=>patchStep(index,{condition:{logic:step.condition?.logic||"and",rules:[...(step.condition?.rules||[]),{fieldId:"",operator:"equals",value:""}]}})}><IconPlus size={15}/>Add condition</button></div>
                     </article>
                   ))}
+                    </div></div>
+                    <footer className="builder-modal-footer"><button type="button" className="primary" onClick={() => setEditingStepIndex(null)}>Done</button></footer>
+                  </section>
+                </div>}
+                <div className="builder-floating-actions" aria-label="Builder actions">
+                  <button type="button" onClick={addField}><IconPlus size={18}/><span>Add field</span></button>
+                  <button type="button" onClick={addStep}><IconPlus size={18}/><span>Add step</span></button>
                 </div>
               </>
             )}

@@ -362,7 +362,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                   {selectedStepFields.map((field) => field.type === "radio" ? (
                     <fieldset className="step-radio-field" key={field.id}>
                       <legend>{field.label}{field.required && <span aria-hidden="true"> *</span>}</legend>
-                      {field.description && <small>{field.description}</small>}
+                      {field.description && <small className="field-description">{field.description}</small>}
                       <div className="step-radio-options">
                         {field.options.map((option) => (
                           <label className="radio" key={option}>
@@ -382,18 +382,18 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                   ) : (
                     <label key={field.id}>
                       {field.label}{field.required && <span aria-hidden="true"> *</span>}
-                      <small>{field.description}</small>
+                      {field.description && <small className="field-description" id={`step-${field.id}-description`}>{field.description}</small>}
                       {field.type === "textarea" ? (
-                        <textarea required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
+                        <textarea aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
                       ) : field.type === "select" ? (
-                        <select required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })}>
+                        <select aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })}>
                           <option value="">Select one</option>
                           {field.options.map((option) => <option key={option}>{option}</option>)}
                         </select>
                       ) : field.type === "checkbox" ? (
                         <input type="checkbox" checked={Boolean(stepResponses[field.id])} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.checked })} />
                       ) : (
-                        <input required={field.required} type={field.type} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
+                        <input aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} type={field.type} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
                       )}
                     </label>
                   ))}

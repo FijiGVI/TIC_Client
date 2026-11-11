@@ -25,6 +25,7 @@
 .validation-editor .validation-pattern, .validation-editor .validation-message, .validation-editor .validation-help { grid-column: 1 / -1; }
 .validation-help { color: var(--muted); }
 .field-error { display: block; margin-top: .4rem; color: var(--danger); font-weight: 700; }
+.field-description { display: block; min-height: 1rem; color: var(--muted); line-height: 1.4; }
 .dynamic-fields [aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px rgb(196 45 38 / 10%); }
 .modal.new-request-modal { display: flex; width: min(1240px, calc(100vw - 48px)); max-width: none; height: auto; max-height: calc(100dvh - 48px); flex-direction: column; overflow: hidden; padding: 0; }
 .new-request-modal > .modal-close { z-index: 2; top: 18px; right: 18px; display: grid; width: 40px; height: 40px; place-items: center; border-radius: 50%; background: white; }

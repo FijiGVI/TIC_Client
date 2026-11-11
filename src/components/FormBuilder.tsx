@@ -76,7 +76,7 @@ const previewStepApplies = (step: Draft["workflowSteps"][number], responses: Rec
 };
 
 function PreviewField({ field, value, onChange }: { field: FormField; value: unknown; onChange(value: unknown): void }) {
-  const description = field.description ? <small>{field.description}</small> : null;
+  const description = field.description ? <small className="field-description">{field.description}</small> : null;
   const label = <>{field.label}{field.required && <span aria-hidden="true"> *</span>}</>;
   if (field.type === "textarea")
     return (

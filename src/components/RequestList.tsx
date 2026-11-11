@@ -13,6 +13,7 @@ import { Pagination } from "@/components/Pagination";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { api } from "@/lib/api";
 import type { DepartmentOption, PaginationMeta, ServiceRequest } from "@/lib/types";
+import "./RequestList.css";
 
 type Filter = "all" | "open" | "completed";
 const statusLabel = (status: string) => status.replaceAll("_", " ");
@@ -358,7 +359,27 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 <h3>{selectedStep.name} fields</h3>
                 {selectedStep.instructions && <p>{selectedStep.instructions}</p>}
                 <div className="dynamic-fields step-response-fields">
-                  {selectedStepFields.map((field) => (
+                  {selectedStepFields.map((field) => field.type === "radio" ? (
+                    <fieldset className="step-radio-field" key={field.id}>
+                      <legend>{field.label}{field.required && <span aria-hidden="true"> *</span>}</legend>
+                      {field.description && <small>{field.description}</small>}
+                      <div className="step-radio-options">
+                        {field.options.map((option) => (
+                          <label className="radio" key={option}>
+                            <input
+                              required={field.required}
+                              type="radio"
+                              name={`step-field-${field.id}`}
+                              value={option}
+                              checked={stepResponses[field.id] === option}
+                              onChange={() => setStepResponses({ ...stepResponses, [field.id]: option })}
+                            />
+                            <span>{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : (
                     <label key={field.id}>
                       {field.label}{field.required && <span aria-hidden="true"> *</span>}
                       <small>{field.description}</small>

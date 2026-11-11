@@ -1,0 +1,45 @@
+.step-radio-field {
+  display: grid;
+  gap: 8px;
+}
+
+.step-radio-field legend {
+  padding: 0 4px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.step-radio-field > small {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.step-radio-options {
+  display: grid;
+  gap: 8px;
+}
+
+.step-radio-options .radio {
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.step-radio-options .radio:has(input:checked) {
+  border-color: var(--blue);
+  background: #f2f7fc;
+  box-shadow: 0 0 0 2px rgba(23, 105, 170, 0.08);
+}
+
+.step-radio-options input {
+  flex: 0 0 auto;
+}
+
+.step-radio-options span {
+  font-weight: 600;
+}

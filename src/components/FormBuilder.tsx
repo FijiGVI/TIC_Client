@@ -425,7 +425,7 @@ export function FormBuilder() {
                 </div>
                 <div className="field-editor improved">
                   {draft.fields.map((field, index) => (
-                    <article key={`${field.id}-${index}`}>
+                    <article key={index}>
                       <header className="field-card-header">
                         <div>
                           <span>{index + 1}</span>

@@ -144,6 +144,9 @@ export function FormBuilder() {
   const [previewStage, setPreviewStage] = useState(0);
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
+  const [builderTab, setBuilderTab] = useState<"fields" | "steps">("fields");
+  const [duplicateTarget, setDuplicateTarget] = useState<{ kind: "field" | "step"; index: number } | null>(null);
+  const [duplicateCount, setDuplicateCount] = useState(1);
   const [draftStatus, setDraftStatus] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
@@ -251,6 +254,7 @@ export function FormBuilder() {
       ],
     }));
     setEditingFieldIndex(nextIndex);
+    setBuilderTab("fields");
   };
   const addStep = () => {
     const nextIndex = draft.workflowSteps.length;
@@ -271,6 +275,63 @@ export function FormBuilder() {
       ],
     }));
     setEditingStepIndex(nextIndex);
+    setBuilderTab("steps");
+  };
+  const duplicateItems = () => {
+    if (!duplicateTarget) return;
+    const count = Math.min(20, Math.max(1, Math.trunc(duplicateCount)));
+    setDraft((current) => {
+      const fieldIds = new Set(current.fields.map((field) => field.id));
+      const stepIds = new Set(current.workflowSteps.map((step) => step.id));
+      const uniqueId = (prefix: string, ids: Set<string>) => {
+        let sequence = ids.size + 1;
+        while (ids.has(`${prefix}_${sequence}`)) sequence += 1;
+        const id = `${prefix}_${sequence}`;
+        ids.add(id);
+        return id;
+      };
+      if (duplicateTarget.kind === "field") {
+        const source = current.fields[duplicateTarget.index];
+        if (!source) return current;
+        const copies = Array.from({ length: count }, (_, copyIndex) => ({
+          ...source,
+          id: uniqueId("field", fieldIds),
+          label: `${source.label} (Copy ${copyIndex + 1})`,
+          options: [...source.options],
+          validation: { ...source.validation },
+        }));
+        const fields = [...current.fields];
+        fields.splice(duplicateTarget.index + 1, 0, ...copies);
+        return { ...current, fields };
+      }
+      const sourceStep = current.workflowSteps[duplicateTarget.index];
+      if (!sourceStep) return current;
+      const assignedFields = current.fields.filter((field) => field.stepId === sourceStep.id);
+      const copiedFields: FormField[] = [];
+      const copiedSteps = Array.from({ length: count }, (_, copyIndex) => {
+        const stepId = uniqueId("step", stepIds);
+        assignedFields.forEach((field) => copiedFields.push({
+          ...field,
+          id: uniqueId("field", fieldIds),
+          label: `${field.label} (Copy ${copyIndex + 1})`,
+          stepId,
+          options: [...field.options],
+          validation: { ...field.validation },
+        }));
+        return {
+          ...sourceStep,
+          id: stepId,
+          name: `${sourceStep.name} (Copy ${copyIndex + 1})`,
+          allowedRoles: [...sourceStep.allowedRoles],
+          condition: { ...sourceStep.condition, rules: sourceStep.condition.rules.map((rule) => ({ ...rule })) },
+        };
+      });
+      const workflowSteps = [...current.workflowSteps];
+      workflowSteps.splice(duplicateTarget.index + 1, 0, ...copiedSteps);
+      return { ...current, workflowSteps, fields: [...current.fields, ...copiedFields] };
+    });
+    setDuplicateTarget(null);
+    setDuplicateCount(1);
   };
   const save = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -502,6 +563,11 @@ export function FormBuilder() {
                     </label>
                   ))}
                 </fieldset>
+                <div className="builder-tabs" role="tablist" aria-label="Form configuration">
+                  <button type="button" role="tab" aria-selected={builderTab === "fields"} className={builderTab === "fields" ? "active" : ""} onClick={() => setBuilderTab("fields")}>Fields <span>{draft.fields.length}</span></button>
+                  <button type="button" role="tab" aria-selected={builderTab === "steps"} className={builderTab === "steps" ? "active" : ""} onClick={() => setBuilderTab("steps")}>Workflow steps <span>{draft.workflowSteps.length}</span></button>
+                </div>
+                {builderTab === "fields" && <>
                 <div className="section-title">
                   <div>
                     <h3>Form fields</h3>
@@ -515,7 +581,7 @@ export function FormBuilder() {
                       <summary>
                         <span className="builder-item-number">{index + 1}</span>
                         <span className="builder-item-title"><strong>{field.label || `Field ${index + 1}`}</strong><small>{field.type} · {stepName}{field.required ? " · Required" : ""}</small></span>
-                        <button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingFieldIndex(index); }}>Edit</button>
+                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setDuplicateTarget({ kind: "field", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingFieldIndex(index); }}>Edit</button></span>
                       </summary>
                       <div className="builder-item-details">
                         <p>{field.description || "No help text provided."}</p>
@@ -746,6 +812,8 @@ export function FormBuilder() {
                     <footer className="builder-modal-footer"><button type="button" className="primary" onClick={() => setEditingFieldIndex(null)}>Done</button></footer>
                   </section>
                 </div>}
+                </>}
+                {builderTab === "steps" && <>
                 <div className="section-title">
                   <div>
                     <h3>Approval workflow</h3>
@@ -759,7 +827,7 @@ export function FormBuilder() {
                       <summary>
                         <span className="builder-item-number">{index + 1}</span>
                         <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small>{stepRoles.map(previewRoleLabel).join(", ")} · {(step.condition?.rules || []).length} condition(s)</small></span>
-                        <button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingStepIndex(index); }}>Edit</button>
+                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingStepIndex(index); }}>Edit</button></span>
                       </summary>
                       <div className="builder-item-details"><p>{step.instructions || "No instructions provided."}</p><p><strong>Completed by:</strong> {stepRoles.map(previewRoleLabel).join(", ")}</p></div>
                     </details>;
@@ -824,10 +892,21 @@ export function FormBuilder() {
                     <footer className="builder-modal-footer"><button type="button" className="primary" onClick={() => setEditingStepIndex(null)}>Done</button></footer>
                   </section>
                 </div>}
+                </>}
                 <div className="builder-floating-actions" aria-label="Builder actions">
                   <button type="button" onClick={addField}><IconPlus size={18}/><span>Add field</span></button>
                   <button type="button" onClick={addStep}><IconPlus size={18}/><span>Add step</span></button>
                 </div>
+                {duplicateTarget && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => setDuplicateTarget(null)}>
+                  <section className="modal duplicate-builder-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-builder-title" onMouseDown={(event) => event.stopPropagation()}>
+                    <button type="button" className="modal-close" aria-label="Close duplicate dialog" onClick={() => setDuplicateTarget(null)}><IconX size={20}/></button>
+                    <p className="eyebrow">Duplicate {duplicateTarget.kind}</p>
+                    <h2 id="duplicate-builder-title">How many copies?</h2>
+                    <p>Each copy receives a unique ID. Duplicated steps also include copies of fields assigned to that step.</p>
+                    <label>Number of copies<input type="number" min="1" max="20" step="1" value={duplicateCount} onChange={(event) => setDuplicateCount(event.target.valueAsNumber || 1)}/><small>You can create between 1 and 20 copies at a time.</small></label>
+                    <div className="modal-actions"><button type="button" className="secondary" onClick={() => setDuplicateTarget(null)}>Cancel</button><button type="button" className="primary" onClick={duplicateItems}>Create {Math.min(20, Math.max(1, Math.trunc(duplicateCount)))} {Math.min(20, Math.max(1, Math.trunc(duplicateCount))) === 1 ? "copy" : "copies"}</button></div>
+                  </section>
+                </div>}
               </>
             )}
             <div className="save-bar">

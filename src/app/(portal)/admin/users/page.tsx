@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Pagination } from '@/components/Pagination';
 import { roleLabel } from '@/lib/access-control';
 import { api } from '@/lib/api';
+import { useAuth } from '@/features/auth/AuthProvider';
 import type { ManagedUser, PaginationMeta, Role, RoleOption } from '@/lib/types';
 
 type UserSource = 'tic' | 'act';
@@ -14,6 +15,7 @@ type UserDraft = {
   organizationType: string; organizationName: string;
 };
 type ModalState = { mode: 'create' } | { mode: 'view' | 'edit'; user: ManagedUser } | null;
+type GuestRegistration = { id: string; email: string; name: string; companyName: string | null; businessUnitName: string | null; approvalStatus: 'pending'; createdAt: string };
 
 const emptyDraft: UserDraft = {
   firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '',
@@ -31,6 +33,7 @@ function organizationLabel(user: ManagedUser): string {
 }
 
 export default function UsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
   const [source, setSource] = useState<UserSource>('tic');
@@ -41,6 +44,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [registrations, setRegistrations] = useState<GuestRegistration[]>([]);
 
   const load = useCallback(
     () => api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/${source === 'tic' ? 'users' : 'act-identities'}?page=${page}&pageSize=20`),
@@ -70,6 +74,22 @@ export default function UsersPage() {
       });
     return () => { active = false; };
   }, []);
+
+  const loadRegistrations = useCallback(async () => {
+    if (currentUser?.role !== 'admin') return;
+    const response = await api.get<{ data: GuestRegistration[] }>('/registration-requests?page=1&pageSize=50');
+    setRegistrations(response.data);
+  }, [currentUser?.role]);
+
+  useEffect(() => { void loadRegistrations().catch((reason) => setError(reason instanceof Error ? reason.message : 'Unable to load registration requests')); }, [loadRegistrations]);
+
+  const reviewRegistration = async (registration: GuestRegistration, action: 'approve' | 'reject') => {
+    setError('');
+    try {
+      await api.patch(`/registration-requests/${registration.id}`, { action });
+      await Promise.all([loadRegistrations(), refresh()]);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to review this registration'); }
+  };
 
   const refresh = async () => {
     setLoading(true);
@@ -149,6 +169,11 @@ export default function UsersPage() {
       </div>
     </header>
     {error && <div className="alert" role="alert">{error}</div>}
+
+    {currentUser?.role === 'admin' && registrations.length > 0 && <section className="surface users-table-surface registration-review-surface">
+      <div className="surface-toolbar"><div><h2>Pending Microsoft registrations</h2><small>{registrations.length} awaiting review</small></div></div>
+      <div className="users-table-scroll"><table className="users-table"><thead><tr><th>Name</th><th>Email</th><th>Company</th><th>Business unit</th><th>Submitted</th><th>Actions</th></tr></thead><tbody>{registrations.map((registration) => <tr key={registration.id}><td><strong>{registration.name}</strong></td><td>{registration.email}</td><td>{registration.companyName || 'Not provided'}</td><td>{registration.businessUnitName || 'Not provided'}</td><td>{new Date(registration.createdAt).toLocaleString()}</td><td><div className="table-actions"><button type="button" className="primary compact" onClick={() => void reviewRegistration(registration, 'approve')}>Approve</button><button type="button" className="danger compact" onClick={() => void reviewRegistration(registration, 'reject')}>Reject</button></div></td></tr>)}</tbody></table></div>
+    </section>}
 
     <section className="surface users-table-surface">
       <div className="surface-toolbar">

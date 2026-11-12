@@ -4,6 +4,13 @@
 .forgot-link { align-self: flex-end; font-size: .875rem; font-weight: 700; }
 .auth-simple .auth-panel { width: 100%; min-height: 100vh; }
 .auth-simple .auth-card { margin: auto; }
+.registration-card { width: min(660px, 100%); }
+.registration-name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.registration-card input[readonly] { background: #f2f4f7; color: var(--muted); }
+.registration-card .registration-cancel { width: 100%; margin-top: 10px; }
+.registration-success { text-align: center; }
+.registration-success > svg { color: var(--teal); }
+@media (max-width: 620px) { .registration-name-grid { grid-template-columns: 1fr; gap: 0; } }
 .readonly { background: #eef2f5 !important; color: #667085; cursor: not-allowed; }
 .compact { padding: .45rem .7rem; font-size: .78rem; }
 .user-row.inactive { opacity: .62; background: #f7f7f8; }

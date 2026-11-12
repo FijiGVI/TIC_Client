@@ -19,8 +19,8 @@ export default function MicrosoftSsoCallbackPage() {
       try {
         const destination = consumeMicrosoftReturnTo();
         const microsoftSession = await completeMicrosoftSignIn();
-        await loginWithMicrosoft(microsoftSession.idToken);
-        router.replace(destination);
+        const result = await loginWithMicrosoft(microsoftSession.idToken);
+        router.replace(result === 'registration_required' ? '/register' : destination);
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'Microsoft sign-in could not be completed.');
       }

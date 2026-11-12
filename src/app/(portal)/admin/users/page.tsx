@@ -1,6 +1,6 @@
 'use client';
 
-import { IconEye, IconPencil, IconRefresh, IconUserPlus } from '@tabler/icons-react';
+import { IconEye, IconPencil, IconRefresh, IconSearch, IconUserPlus } from '@tabler/icons-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Pagination } from '@/components/Pagination';
 import { roleLabel } from '@/lib/access-control';
@@ -41,6 +41,11 @@ export default function UsersPage() {
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
   const [source, setSource] = useState<UserSource>('tic');
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [organizationFilter, setOrganizationFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [meta, setMeta] = useState(initialMeta);
   const [modal, setModal] = useState<ModalState>(null);
   const [draft, setDraft] = useState<UserDraft>(emptyDraft);
@@ -52,10 +57,21 @@ export default function UsersPage() {
   const [editingRegistration, setEditingRegistration] = useState<GuestRegistration | null>(null);
   const [registrationDraft, setRegistrationDraft] = useState<RegistrationDraft>({ firstName: '', middleName: '', lastName: '', email: '', companyName: '', departmentId: '' });
 
-  const load = useCallback(
-    () => api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/${source === 'tic' ? 'users' : 'act-identities'}?page=${page}&pageSize=20`),
-    [page, source],
-  );
+  const load = useCallback(() => {
+    const parameters = new URLSearchParams({ page: String(page), pageSize: '20' });
+    if (source === 'tic') {
+      if (search) parameters.set('search', search);
+      if (organizationFilter) parameters.set('organization', organizationFilter);
+      if (roleFilter) parameters.set('role', roleFilter);
+      if (statusFilter) parameters.set('status', statusFilter);
+    }
+    return api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/${source === 'tic' ? 'users' : 'act-identities'}?${parameters}`);
+  }, [organizationFilter, page, roleFilter, search, source, statusFilter]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     let active = true;
@@ -234,6 +250,13 @@ export default function UsersPage() {
           <button type="button" className={source === 'act' ? 'selected' : ''} onClick={() => { setLoading(true); setSource('act'); setPage(1); }}>ACT identities</button>
         </div>
       </div>
+      {source === 'tic' && <div className="user-filter-toolbar" aria-label="Filter ticketing accounts">
+        <label className="user-search"><span className="sr-only">Search users</span><IconSearch size={16}/><input type="search" value={searchInput} placeholder="Search name or email" onChange={(event) => setSearchInput(event.target.value)}/></label>
+        <label><span className="sr-only">Organization</span><select value={organizationFilter} onChange={(event) => { setOrganizationFilter(event.target.value); setPage(1); }}><option value="">All organizations</option><option value="GVI">GVI</option><option value="GVE">GVE</option><option value="HULMA">HULMA</option></select></label>
+        <label><span className="sr-only">Role</span><select value={roleFilter} onChange={(event) => { setRoleFilter(event.target.value); setPage(1); }}><option value="">All roles</option>{roleOptions.map((option) => <option value={option.role} key={option.role}>{option.label}</option>)}</select></label>
+        <label><span className="sr-only">Status</span><select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="pending">Pending</option></select></label>
+        <button type="button" className="secondary compact" disabled={!searchInput && !organizationFilter && !roleFilter && !statusFilter} onClick={() => { setSearchInput(''); setSearch(''); setOrganizationFilter(''); setRoleFilter(''); setStatusFilter(''); setPage(1); }}>Clear</button>
+      </div>}
       <div className="users-table-scroll"><table className="users-table">
         <thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Organization</th><th>Roles</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>

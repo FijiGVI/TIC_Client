@@ -4,6 +4,7 @@ import {
   IconArrowRight,
   IconClock,
   IconFilePlus,
+  IconDownload,
   IconRefresh,
   IconSearch,
 } from "@tabler/icons-react";
@@ -81,6 +82,14 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
     const value = stepResponses[field.id];
     return field.type === "checkbox" ? value === true : String(value ?? "").trim().length > 0;
   });
+  const downloadAttachment = async (id: string) => {
+    try {
+      const result = await api.get<{ data: { downloadUrl: string } }>(`/uploads/${id}/download`);
+      window.open(result.data.downloadUrl, '_blank', 'noopener,noreferrer');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to download attachment');
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -332,16 +341,16 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
             <h3>Request details</h3>
             <dl>
               {selected.departmentSnapshot && <div><dt>Department</dt><dd>{selected.departmentSnapshot.code ? `${selected.departmentSnapshot.code} — ` : ""}{selected.departmentSnapshot.name}</dd></div>}
-              {Object.entries(selected.responses).map(([key, value]) => (
-                <div key={key}>
+              {Object.entries(selected.responses).map(([key, value]) => {
+                const field = selected.formSnapshot.fields.find((candidate) => candidate.id === key);
+                const attachment = field?.type === 'csv' ? selected.attachments?.find((candidate) => candidate.id === value) : null;
+                return <div key={key}>
                   <dt>
-                    {selected.formSnapshot.fields.find(
-                      (field) => field.id === key,
-                    )?.label || key}
+                    {field?.label || key}
                   </dt>
-                  <dd>{String(value)}</dd>
-                </div>
-              ))}
+                  <dd>{attachment ? <button type="button" className="secondary compact" onClick={() => void downloadAttachment(attachment.id)}><IconDownload size={15}/>{attachment.originalName}</button> : String(value)}</dd>
+                </div>;
+              })}
             </dl>
             {!!selected.events?.length && (
               <>
@@ -401,7 +410,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                       ) : field.type === "checkbox" ? (
                         <input type="checkbox" checked={Boolean(stepResponses[field.id])} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.checked })} />
                       ) : (
-                        <input aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} placeholder={field.placeholder} type={field.type} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
+                        <input aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} placeholder={field.placeholder} min={field.type === "number" ? field.validation.min ?? 0 : undefined} max={field.type === "number" ? field.validation.max : undefined} type={field.type} value={String(stepResponses[field.id] || "")} onChange={(event) => { if (field.type === "number" && event.target.value !== "" && event.target.valueAsNumber < 0) return; setStepResponses({ ...stepResponses, [field.id]: event.target.value }); }} />
                       )}
                     </label>
                   ))}

@@ -30,6 +30,7 @@ export type FieldType =
   | "select"
   | "radio"
   | "checkbox"
+  | "csv"
   | "image"
   | "pdf";
 export type ConditionOperator = "equals" | "not_equals" | "contains" | "is_empty" | "is_not_empty";
@@ -120,6 +121,13 @@ export type RequestEvent = {
   createdAt: string;
   actorSnapshot?: TicActor;
 };
+export type RequestAttachment = {
+  id: string;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAt: string;
+};
 export type ServiceRequest = {
   id: string;
   referenceNumber: string;
@@ -140,6 +148,7 @@ export type ServiceRequest = {
   createdAt: string;
   updatedAt: string;
   events?: RequestEvent[];
+  attachments?: RequestAttachment[];
 };
 export type DepartmentOption = {
   id: string;

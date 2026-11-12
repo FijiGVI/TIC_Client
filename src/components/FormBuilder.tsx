@@ -2,6 +2,7 @@
 
 import {
   IconDeviceFloppy,
+  IconGripVertical,
   IconEye,
   IconPencil,
   IconPlus,
@@ -35,6 +36,7 @@ const fieldTypes: FieldType[] = [
   "select",
   "radio",
   "checkbox",
+  "csv",
 ];
 const slug = (value: string) =>
   value
@@ -84,19 +86,47 @@ function FieldConditionEditor({ field, fieldIndex, fields, onChange }: { field: 
     {!!condition.groups.length && <label>Top-level logic<select value={condition.logic} onChange={(event) => onChange({ ...condition, logic: event.target.value as "and" | "or" })}><option value="and">All groups match (AND)</option><option value="or">Any group matches (OR)</option></select></label>}
     {condition.groups.map((group, groupIndex) => <section className="condition-group" key={groupIndex}>
       <header><label>Group {groupIndex + 1} logic<select value={group.logic} onChange={(event) => patchGroup(groupIndex, { logic: event.target.value as "and" | "or" })}><option value="and">All conditions match (AND)</option><option value="or">Any condition matches (OR)</option></select></label><button type="button" className="danger compact" onClick={() => onChange({ ...condition, groups: condition.groups.filter((_, index) => index !== groupIndex) })}>Remove group</button></header>
-      {group.rules.map((rule, ruleIndex) => <div className="nested-condition-rule" key={ruleIndex}>
+      {group.rules.map((rule, ruleIndex) => { const source = availableFields.find((candidate) => candidate.id === rule.fieldId); const operators = source?.type === 'csv' ? conditionOperators.filter((operator) => ['is_empty', 'is_not_empty'].includes(operator.value)) : source && !['text', 'textarea', 'email'].includes(source.type) ? conditionOperators.filter((operator) => operator.value !== 'contains') : conditionOperators; return <div className="nested-condition-rule" key={ruleIndex}>
         <label>Field<select value={rule.fieldId} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, fieldId: event.target.value } : item) })}><option value="">Select an earlier field</option>{availableFields.map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.label}</option>)}</select></label>
-        <label>Operator<select value={rule.operator} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, operator: event.target.value as ConditionOperator } : item) })}>{conditionOperators.map((operator) => <option value={operator.value} key={operator.value}>{operator.label}</option>)}</select></label>
-        {!rule.operator.includes("empty") && <label>Expected value<input value={rule.value} placeholder="Enter the value to compare" onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, value: event.target.value } : item) })}/></label>}
+        <label>Operator<select value={rule.operator} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, operator: event.target.value as ConditionOperator } : item) })}>{operators.map((operator) => <option value={operator.value} key={operator.value}>{operator.label}</option>)}</select></label>
+        {!rule.operator.includes("empty") && <label>Expected value{source?.type === 'checkbox' ? <select value={rule.value} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, value: event.target.value } : item) })}><option value="">Select a value</option><option value="true">Checked</option><option value="false">Not checked</option></select> : source && ['select', 'radio'].includes(source.type) ? <select value={rule.value} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, value: event.target.value } : item) })}><option value="">Select an option</option>{source.options.map((option) => <option value={option} key={option}>{option}</option>)}</select> : <input type={source && ['number', 'date', 'time'].includes(source.type) ? source.type : 'text'} min={source?.type === 'number' ? 0 : undefined} value={rule.value} placeholder="Enter the value to compare" onChange={(event) => { if (source?.type === 'number' && event.target.value !== '' && event.target.valueAsNumber < 0) return; patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, value: event.target.value } : item) }); }}/>}</label>}
         <button type="button" className="danger compact" onClick={() => {
           if (group.rules.length === 1) onChange({ ...condition, groups: condition.groups.filter((_, index) => index !== groupIndex) });
           else patchGroup(groupIndex, { rules: group.rules.filter((_, index) => index !== ruleIndex) });
         }}>Remove condition</button>
-      </div>)}
+      </div>})}
       <button type="button" className="secondary compact" disabled={group.rules.length >= 20} onClick={() => patchGroup(groupIndex, { rules: [...group.rules, { fieldId: availableFields[0]?.id || "", operator: "equals", value: "" }] })}><IconPlus size={15}/>Add condition</button>
     </section>)}
     <button type="button" className="secondary" disabled={!availableFields.length || condition.groups.length >= 20} title={availableFields.length ? "Add a nested condition group" : "Add an earlier field in the same stage first"} onClick={addGroup}><IconPlus size={16}/>Add condition group</button>
   </fieldset>;
+}
+
+function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onValidationPatch }: { field: FormField; index: number; fields: FormField[]; workflowSteps: Draft["workflowSteps"]; onPatch(patch: Partial<FormField>): void; onValidationPatch(patch: Partial<FormField["validation"]>): void }) {
+  const numericChange = (key: "min" | "max", raw: string, value: number) => {
+    if (raw === "") { onValidationPatch({ [key]: undefined }); return; }
+    if (!Number.isFinite(value) || value < 0) return;
+    if (key === "min" && field.validation.max !== undefined && value > field.validation.max) return;
+    if (key === "max" && field.validation.min !== undefined && value < field.validation.min) return;
+    onValidationPatch({ [key]: value });
+  };
+  return <div className="inline-field-editor" onClick={(event) => event.stopPropagation()}>
+    <div className="field-settings-grid">
+      <label>Field label<input value={field.label} onChange={(event) => onPatch({ label: event.target.value, id: (slug(event.target.value).replaceAll("-", "_") || `field_${index + 1}`).slice(0, 50) })}/></label>
+      <label>Field ID<input readOnly className="readonly" value={field.id}/></label>
+      <label>Field type<select value={field.type} onChange={(event) => { const type = event.target.value as FieldType; onPatch({ type, defaultValue: null, ...(type === 'csv' ? { stepId: null } : {}) }); }}>{fieldTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
+      <label>Completed by<select disabled={field.type === 'csv'} value={field.stepId || ""} onChange={(event) => onPatch({ stepId: event.target.value || null, condition: { logic: "and", groups: [] } })}><option value="">Requester submission</option>{workflowSteps.map((step) => <option value={step.id} key={step.id}>{step.name}</option>)}</select></label>
+    </div>
+    <label className="field-help">Help text or instructions<textarea value={field.description} placeholder="Explain what information should be entered in this field." onChange={(event) => onPatch({ description: event.target.value })}/></label>
+    {['select', 'radio'].includes(field.type) && <label>Options<textarea className="options" value={field.options.join("\n")} placeholder="One option per line, or separate options with commas" onChange={(event) => onPatch({ options: event.target.value.split(/[\n,]/).map((value) => value.trim()).filter(Boolean), defaultValue: null })}/></label>}
+    <div className="field-defaults-grid">
+      {field.type === 'csv' ? <div className="field-type-note"><strong>CSV upload</strong><small>Accepts one CSV file up to 10 MB. The uploaded file remains available from the submitted request.</small></div> : field.type === 'checkbox' ? <label className="check"><input type="checkbox" checked={field.defaultValue === true} onChange={(event) => onPatch({ defaultValue: event.target.checked })}/>Checked by default</label> : <label>Default value{['select', 'radio'].includes(field.type) ? <select value={String(field.defaultValue ?? "")} onChange={(event) => onPatch({ defaultValue: event.target.value || null })}><option value="">No default value</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <input type={['number', 'date', 'time'].includes(field.type) ? field.type : 'text'} min={field.type === 'number' ? 0 : undefined} value={String(field.defaultValue ?? "")} onChange={(event) => { if (field.type === 'number' && event.target.value !== '') { const value = event.target.valueAsNumber; if (!Number.isFinite(value) || value < 0 || (field.validation.min !== undefined && value < field.validation.min) || (field.validation.max !== undefined && value > field.validation.max)) return; onPatch({ defaultValue: value }); } else onPatch({ defaultValue: event.target.value || null }); }}/>}</label>}
+      {!['checkbox', 'radio', 'select', 'csv'].includes(field.type) && <label>Placeholder<input maxLength={300} value={field.placeholder || ""} placeholder="Text shown before the user enters a value" onChange={(event) => onPatch({ placeholder: event.target.value })}/></label>}
+    </div>
+    {['text', 'textarea', 'email'].includes(field.type) && <fieldset className="validation-editor"><legend>Validation rules</legend><label>Minimum length<input type="number" min="0" max="10000" value={field.validation.minLength ?? ""} onChange={(event) => onValidationPatch({ minLength: event.target.value === '' ? undefined : Math.max(0, event.target.valueAsNumber) })}/></label><label>Maximum length<input type="number" min="1" max="10000" value={field.validation.maxLength ?? ""} onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== '' && (value < 1 || (field.validation.minLength !== undefined && value < field.validation.minLength))) return; onValidationPatch({ maxLength: event.target.value === '' ? undefined : value }); }}/></label><label className="validation-pattern">Pattern (regular expression)<input maxLength={300} value={field.validation.pattern ?? ""} placeholder="Example: ^ABC-[0-9]{4}$" onChange={(event) => onValidationPatch({ pattern: event.target.value || undefined })}/></label><label>Pattern flags<select disabled={!field.validation.pattern} value={field.validation.patternFlags ?? ""} onChange={(event) => onValidationPatch({ patternFlags: event.target.value || undefined })}><option value="">Case-sensitive</option><option value="i">Ignore case</option><option value="m">Multiline</option><option value="im">Ignore case + multiline</option></select></label><label className="validation-message">Error message<input maxLength={300} value={field.validation.message ?? ""} onChange={(event) => onValidationPatch({ message: event.target.value || undefined })}/></label></fieldset>}
+    {field.type === 'number' && <fieldset className="validation-editor numeric-validation"><legend>Validation rules</legend><label>Minimum value<input type="number" min="0" value={field.validation.min ?? ""} onChange={(event) => numericChange('min', event.target.value, event.target.valueAsNumber)}/></label><label>Maximum value<input type="number" min="0" value={field.validation.max ?? ""} onChange={(event) => numericChange('max', event.target.value, event.target.valueAsNumber)}/></label><small className="validation-help">Only non-negative numbers are accepted. Maximum must be greater than or equal to minimum.</small></fieldset>}
+    <label className="check"><input type="checkbox" checked={field.required} onChange={(event) => onPatch({ required: event.target.checked })}/>Required</label>
+    <FieldConditionEditor field={field} fieldIndex={index} fields={fields} onChange={(condition) => onPatch({ condition })}/>
+  </div>;
 }
 
 const previewStepApplies = (step: Draft["workflowSteps"][number], responses: Record<string, unknown>): boolean => {
@@ -156,6 +186,14 @@ function PreviewField({ field, value, onChange }: { field: FormField; value: unk
         {label}
       </label>
     );
+  if (field.type === "csv")
+    return (
+      <label className="field-wide">
+        <span>{label}</span>
+        {description}
+        <input type="file" accept=".csv,text/csv,application/csv" onChange={(event) => onChange(event.target.files?.[0]?.name || "")} />
+      </label>
+    );
   return (
     <label>
       <span>{label}</span>
@@ -164,6 +202,8 @@ function PreviewField({ field, value, onChange }: { field: FormField; value: unk
         type={
           field.type === "image" || field.type === "pdf" ? "file" : field.type
         }
+        min={field.type === "number" ? field.validation.min ?? 0 : undefined}
+        max={field.type === "number" ? field.validation.max : undefined}
         value={field.type === "image" || field.type === "pdf" ? undefined : String(value || "")}
         placeholder={field.placeholder || field.description}
         onChange={(event) => onChange(event.target.value)}
@@ -183,6 +223,8 @@ export function FormBuilder() {
   const [previewResponses, setPreviewResponses] = useState<Record<string, unknown>>({});
   const [previewStage, setPreviewStage] = useState(0);
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
+  const [expandedFieldIndex, setExpandedFieldIndex] = useState<number | null>(null);
+  const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null);
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
   const [builderTab, setBuilderTab] = useState<"fields" | "steps">("fields");
   const [duplicateTarget, setDuplicateTarget] = useState<{ kind: "field" | "step"; index: number } | null>(null);
@@ -195,6 +237,9 @@ export function FormBuilder() {
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
   const draftReady = useRef(false);
+  const addFieldButtonRef = useRef<HTMLButtonElement>(null);
+  const addStepButtonRef = useRef<HTMLButtonElement>(null);
+  const [topBuilderActionVisible, setTopBuilderActionVisible] = useState(true);
   const load = useCallback(async () => {
     try {
       const [formResult, roleResult, groupResult] = await Promise.all([
@@ -245,6 +290,13 @@ export function FormBuilder() {
     }, 500);
     return () => window.clearTimeout(timer);
   }, [draft]);
+  useEffect(() => {
+    const target = builderTab === "fields" ? addFieldButtonRef.current : addStepButtonRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(([entry]) => setTopBuilderActionVisible(entry.isIntersecting), { threshold: 0.2 });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [builderTab]);
   const generatedKey = useMemo(
     () => ("id" in draft ? draft.key : slug(draft.name)),
     [draft],
@@ -304,7 +356,7 @@ export function FormBuilder() {
         },
       ],
     }));
-    setEditingFieldIndex(nextIndex);
+    setExpandedFieldIndex(nextIndex);
     setBuilderTab("fields");
   };
   const addStep = () => {
@@ -327,6 +379,17 @@ export function FormBuilder() {
     }));
     setEditingStepIndex(nextIndex);
     setBuilderTab("steps");
+  };
+  const reorderFields = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const fields = [...draft.fields];
+    const [moved] = fields.splice(fromIndex, 1);
+    fields.splice(toIndex, 0, moved);
+    const positions = new Map(fields.map((field, index) => [field.id, index]));
+    const invalid = fields.some((field, index) => (field.condition?.groups || []).some((group) => group.rules.some((rule) => (positions.get(rule.fieldId) ?? index) >= index)));
+    if (invalid) { setError('A field cannot be moved before a field used by its visibility conditions.'); return; }
+    setDraft((current) => ({ ...current, fields }));
+    setExpandedFieldIndex(toIndex);
   };
   const duplicateItems = () => {
     if (!duplicateTarget) return;
@@ -591,15 +654,6 @@ export function FormBuilder() {
                     />
                   </label>
                   <label>
-                    Unique key
-                    <input
-                      readOnly
-                      aria-readonly="true"
-                      value={generatedKey}
-                      className="readonly"
-                    />
-                  </label>
-                  <label>
                     Group
                     <select
                       required
@@ -672,21 +726,19 @@ export function FormBuilder() {
                     <h3>Form fields</h3>
                     <p>Fields appear in this order to requesters.</p>
                   </div>
+                  <button ref={addFieldButtonRef} type="button" className="primary" onClick={addField}><IconPlus size={17}/>Add field</button>
                 </div>
                 <div className="builder-accordion">
                   {draft.fields.map((field, index) => {
                     const stepName = field.stepId ? draft.workflowSteps.find((step) => step.id === field.stepId)?.name || "Unknown step" : "Requester submission";
-                    return <details key={field.id || index}>
-                      <summary>
+                    return <details key={field.id || index} open={expandedFieldIndex === index} onToggle={(event) => { if (event.currentTarget.open) setExpandedFieldIndex(index); else if (expandedFieldIndex === index) setExpandedFieldIndex(null); }} onDragOver={(event) => { if (draggedFieldIndex !== null) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (draggedFieldIndex !== null) reorderFields(draggedFieldIndex, index); setDraggedFieldIndex(null); }}>
+                      <summary draggable onDragStart={(event) => { setDraggedFieldIndex(index); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', field.id); }} onDragEnd={() => setDraggedFieldIndex(null)}>
+                        <IconGripVertical className="field-drag-handle" size={19} aria-label="Drag to reorder field"/>
                         <span className="builder-item-number">{index + 1}</span>
-                        <span className="builder-item-title"><strong>{field.label || `Field ${index + 1}`}</strong><small>{field.type} · {stepName}{field.required ? " · Required" : ""}</small></span>
-                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setDuplicateTarget({ kind: "field", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingFieldIndex(index); }}>Edit</button></span>
+                        <span className="builder-item-title"><strong>{field.label || `Field ${index + 1}`}</strong><small><span className="builder-badge">{field.type}</span><span>{stepName}</span>{field.required && <span className="builder-badge required">Required</span>}{Boolean(field.condition?.groups?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
+                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDuplicateTarget({ kind: "field", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="danger compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (!window.confirm(`Delete “${field.label}”?`)) return; setDraft((current) => ({ ...current, fields: current.fields.filter((_, currentIndex) => currentIndex !== index) })); setExpandedFieldIndex(null); }}><IconTrash size={15}/>Delete</button></span>
                       </summary>
-                      <div className="builder-item-details">
-                        <p>{field.description || "No help text provided."}</p>
-                        {field.options.length > 0 && <p><strong>Options:</strong> {field.options.join(", ")}</p>}
-                        <p><strong>Field ID:</strong> <code>{field.id}</code></p>
-                      </div>
+                      <InlineFieldEditor field={field} index={index} fields={draft.fields} workflowSteps={draft.workflowSteps} onPatch={(patch) => patchField(index, patch)} onValidationPatch={(patch) => patchFieldValidation(index, patch)}/>
                     </details>;
                   })}
                   {!draft.fields.length && <div className="builder-empty-list">No fields yet. Add the first field to begin.</div>}
@@ -786,11 +838,11 @@ export function FormBuilder() {
                         />
                       </label>
                       <div className="field-defaults-grid">
-                        {field.type === "checkbox" ? <label className="check"><input type="checkbox" checked={field.defaultValue === true} onChange={(event) => patchField(index, { defaultValue: event.target.checked })}/>Checked by default</label> : <label>
+                        {field.type === "csv" ? <div className="field-type-note"><strong>CSV upload</strong><small>Accepts one CSV file up to 10 MB.</small></div> : field.type === "checkbox" ? <label className="check"><input type="checkbox" checked={field.defaultValue === true} onChange={(event) => patchField(index, { defaultValue: event.target.checked })}/>Checked by default</label> : <label>
                           Default value
-                          {field.type === "select" || field.type === "radio" ? <select value={String(field.defaultValue ?? "")} onChange={(event) => patchField(index, { defaultValue: event.target.value || null })}><option value="">No default value</option>{field.options.map((option) => <option value={option} key={option}>{option}</option>)}</select> : <input type={field.type === "number" || field.type === "date" || field.type === "time" ? field.type : "text"} value={String(field.defaultValue ?? "")} onChange={(event) => patchField(index, { defaultValue: event.target.value === "" ? null : field.type === "number" ? event.target.valueAsNumber : event.target.value })}/>} 
+                          {field.type === "select" || field.type === "radio" ? <select value={String(field.defaultValue ?? "")} onChange={(event) => patchField(index, { defaultValue: event.target.value || null })}><option value="">No default value</option>{field.options.map((option) => <option value={option} key={option}>{option}</option>)}</select> : <input type={field.type === "number" || field.type === "date" || field.type === "time" ? field.type : "text"} min={field.type === "number" ? 0 : undefined} value={String(field.defaultValue ?? "")} onChange={(event) => { if (field.type === "number" && event.target.value !== "") { const value = event.target.valueAsNumber; if (!Number.isFinite(value) || value < 0 || (field.validation.min !== undefined && value < field.validation.min) || (field.validation.max !== undefined && value > field.validation.max)) return; patchField(index, { defaultValue: value }); return; } patchField(index, { defaultValue: event.target.value || null }); }}/>} 
                         </label>}
-                        {!['checkbox', 'radio', 'select'].includes(field.type) && <label>
+                        {!['checkbox', 'radio', 'select', 'csv'].includes(field.type) && <label>
                           Placeholder
                           <input maxLength={300} value={field.placeholder || ""} placeholder="Text shown before the user enters a value" onChange={(event) => patchField(index, { placeholder: event.target.value })}/>
                         </label>}
@@ -893,24 +945,18 @@ export function FormBuilder() {
                             Minimum value
                             <input
                               type="number"
+                              min="0"
                               value={field.validation.min ?? ""}
-                              onChange={(event) =>
-                                patchFieldValidation(index, {
-                                  min: event.target.value === "" ? undefined : event.target.valueAsNumber,
-                                })
-                              }
+                              onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== "" && (!Number.isFinite(value) || value < 0 || (field.validation.max !== undefined && value > field.validation.max))) return; patchFieldValidation(index, { min: event.target.value === "" ? undefined : value }); }}
                             />
                           </label>
                           <label>
                             Maximum value
                             <input
                               type="number"
+                              min="0"
                               value={field.validation.max ?? ""}
-                              onChange={(event) =>
-                                patchFieldValidation(index, {
-                                  max: event.target.value === "" ? undefined : event.target.valueAsNumber,
-                                })
-                              }
+                              onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== "" && (!Number.isFinite(value) || value < 0 || (field.validation.min !== undefined && value < field.validation.min))) return; patchFieldValidation(index, { max: event.target.value === "" ? undefined : value }); }}
                             />
                           </label>
                         </fieldset>
@@ -929,6 +975,7 @@ export function FormBuilder() {
                     <h3>Approval workflow</h3>
                     <p>Each step is completed sequentially.</p>
                   </div>
+                  <button ref={addStepButtonRef} type="button" className="primary" onClick={addStep}><IconPlus size={17}/>Add step</button>
                 </div>
                 <div className="builder-accordion">
                   {draft.workflowSteps.map((step, index) => {
@@ -936,7 +983,7 @@ export function FormBuilder() {
                     return <details key={step.id}>
                       <summary>
                         <span className="builder-item-number">{index + 1}</span>
-                        <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small>{stepRoles.map(previewRoleLabel).join(", ")} · {(step.condition?.rules || []).length} condition(s)</small></span>
+                        <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small><span className="builder-badge">Step {index + 1}</span><span>{stepRoles.map(previewRoleLabel).join(", ")}</span>{Boolean(step.condition?.rules?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
                         <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingStepIndex(index); }}>Edit</button></span>
                       </summary>
                       <div className="builder-item-details"><p>{step.instructions || "No instructions provided."}</p><p><strong>Completed by:</strong> {stepRoles.map(previewRoleLabel).join(", ")}</p></div>
@@ -1003,10 +1050,9 @@ export function FormBuilder() {
                   </section>
                 </div>}
                 </>}
-                <div className="builder-floating-actions" aria-label="Builder actions">
-                  <button type="button" onClick={addField}><IconPlus size={18}/><span>Add field</span></button>
-                  <button type="button" onClick={addStep}><IconPlus size={18}/><span>Add step</span></button>
-                </div>
+                {!topBuilderActionVisible && <div className="builder-floating-actions" aria-label="Builder actions">
+                  {builderTab === "fields" ? <button type="button" onClick={addField}><IconPlus size={18}/><span>Add field</span></button> : <button type="button" onClick={addStep}><IconPlus size={18}/><span>Add step</span></button>}
+                </div>}
                 {duplicateTarget && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => setDuplicateTarget(null)}>
                   <section className="modal duplicate-builder-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-builder-title" onMouseDown={(event) => event.stopPropagation()}>
                     <button type="button" className="modal-close" aria-label="Close duplicate dialog" onClick={() => setDuplicateTarget(null)}><IconX size={20}/></button>

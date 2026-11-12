@@ -59,6 +59,30 @@ const blank = (): Draft => ({
   allowedRequesterRoles: ["requester"],
 });
 const initialMeta: PaginationMeta = { page: 1, pageSize: 15, total: 0, totalPages: 1 };
+type LegacyCondition = Partial<FieldCondition> & { rules?: FieldCondition["groups"][number]["rules"] };
+
+const normalizeCondition = (condition?: LegacyCondition): FieldCondition => {
+  const logic = condition?.logic === "or" ? "or" : "and";
+  const groups = Array.isArray(condition?.groups)
+    ? condition.groups
+    : condition?.rules?.length
+      ? [{ logic, rules: condition.rules }]
+      : [];
+
+  return {
+    logic,
+    groups: groups.map((group) => ({
+      logic: group.logic === "or" ? "or" : "and",
+      rules: Array.isArray(group.rules) ? group.rules : [],
+    })),
+  };
+};
+
+const normalizeFormConditions = (form: RequestForm): RequestForm => ({
+  ...form,
+  fields: form.fields.map((field) => ({ ...field, condition: normalizeCondition(field.condition) })),
+  workflowSteps: form.workflowSteps.map((step) => ({ ...step, condition: normalizeCondition(step.condition) })),
+});
 const nextBuilderId = (prefix: string, existingIds: string[]): string => {
   let sequence = existingIds.length + 1;
   while (existingIds.includes(`${prefix}_${sequence}`)) sequence += 1;
@@ -101,6 +125,18 @@ function FieldConditionEditor({ field, fieldIndex, fields, onChange }: { field: 
   </fieldset>;
 }
 
+function StepConditionEditor({ condition, availableFields, onChange }: { condition: FieldCondition; availableFields: FormField[]; onChange(condition: FieldCondition): void }) {
+  const patchGroup = (groupIndex: number, patch: Partial<FieldCondition["groups"][number]>) => onChange({ ...condition, groups: condition.groups.map((group, index) => index === groupIndex ? { ...group, ...patch } : group) });
+  const addGroup = () => onChange({ ...condition, groups: [...condition.groups, { logic: "and", rules: [{ fieldId: availableFields[0]?.id || "", operator: "equals", value: "" }] }] });
+  return <fieldset className="field-condition-editor step-nested-condition"><legend>Step visibility <span>(optional)</span></legend><p>Show this step only when the nested conditions below match.</p>
+    {!!condition.groups.length && <label>Top-level logic<select value={condition.logic} onChange={(event) => onChange({ ...condition, logic: event.target.value as "and" | "or" })}><option value="and">All groups match (AND)</option><option value="or">Any group matches (OR)</option></select></label>}
+    {condition.groups.map((group, groupIndex) => <section className="condition-group" key={groupIndex}><header><label>Group {groupIndex + 1} logic<select value={group.logic} onChange={(event) => patchGroup(groupIndex, { logic: event.target.value as "and" | "or" })}><option value="and">All conditions match (AND)</option><option value="or">Any condition matches (OR)</option></select></label><button type="button" className="danger compact" onClick={() => onChange({ ...condition, groups: condition.groups.filter((_, index) => index !== groupIndex) })}>Remove group</button></header>
+      {group.rules.map((rule, ruleIndex) => { const source = availableFields.find((field) => field.id === rule.fieldId); const operators = source && !['text', 'textarea', 'email'].includes(source.type) ? conditionOperators.filter((operator) => operator.value !== 'contains') : conditionOperators; return <div className="nested-condition-rule" key={ruleIndex}><label>Field<select value={rule.fieldId} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, fieldId: event.target.value, value: '' } : item) })}><option value="">Select an earlier field</option>{availableFields.map((field) => <option value={field.id} key={field.id}>{field.label}</option>)}</select></label><label>Operator<select value={rule.operator} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, operator: event.target.value as ConditionOperator } : item) })}>{operators.map((operator) => <option value={operator.value} key={operator.value}>{operator.label}</option>)}</select></label>{!rule.operator.includes('empty') && <label>Expected value{source && ['select', 'radio'].includes(source.type) ? <select value={rule.value} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, value: event.target.value } : item) })}><option value="">Select an option</option>{source.options.map((option) => <option key={option}>{option}</option>)}</select> : <input type={source && ['number', 'date', 'time'].includes(source.type) ? source.type : 'text'} min={source?.type === 'number' ? 0 : undefined} value={rule.value} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, value: event.target.value } : item) })}/>}</label>}<button type="button" className="danger compact" onClick={() => group.rules.length === 1 ? onChange({ ...condition, groups: condition.groups.filter((_, index) => index !== groupIndex) }) : patchGroup(groupIndex, { rules: group.rules.filter((_, index) => index !== ruleIndex) })}>Remove</button></div>; })}
+      <button type="button" className="secondary compact" onClick={() => patchGroup(groupIndex, { rules: [...group.rules, { fieldId: availableFields[0]?.id || '', operator: 'equals', value: '' }] })}><IconPlus size={15}/>Add condition</button></section>)}
+    <button type="button" className="secondary" disabled={!availableFields.length} onClick={addGroup}><IconPlus size={16}/>Add condition group</button>
+  </fieldset>;
+}
+
 function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onValidationPatch }: { field: FormField; index: number; fields: FormField[]; workflowSteps: Draft["workflowSteps"]; onPatch(patch: Partial<FormField>): void; onValidationPatch(patch: Partial<FormField["validation"]>): void }) {
   const numericChange = (key: "min" | "max", raw: string, value: number) => {
     if (raw === "") { onValidationPatch({ [key]: undefined }); return; }
@@ -129,9 +165,9 @@ function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onVal
 }
 
 const previewStepApplies = (step: Draft["workflowSteps"][number], responses: Record<string, unknown>): boolean => {
-  const rules = step.condition?.rules || [];
-  if (!rules.length) return true;
-  const matches = rules.map((rule) => {
+  const groups = step.condition?.groups || [];
+  if (!groups.length) return true;
+  const ruleMatches = (rule: FieldCondition["groups"][number]["rules"][number]) => {
     const value = responses[rule.fieldId];
     const text = value === undefined || value === null ? "" : String(value);
     if (rule.operator === "equals") return text === rule.value;
@@ -139,7 +175,8 @@ const previewStepApplies = (step: Draft["workflowSteps"][number], responses: Rec
     if (rule.operator === "contains") return text.includes(rule.value);
     if (rule.operator === "is_empty") return text === "" || value === false;
     return text !== "" && value !== false;
-  });
+  };
+  const matches = groups.map((group) => { const results = group.rules.map(ruleMatches); return group.logic === 'or' ? results.some(Boolean) : results.every(Boolean); });
   return step.condition?.logic === "or" ? matches.some(Boolean) : matches.every(Boolean);
 };
 
@@ -247,7 +284,7 @@ export function FormBuilder() {
         api.get<{ data: RoleOption[] }>("/roles"),
         api.get<{ data: FormGroup[] }>("/form-groups"),
       ]);
-      setForms(formResult.data);
+      setForms(formResult.data.map(normalizeFormConditions));
       setMeta(formResult.meta);
       setRoles(roleResult.data.map((role) => ({ value: role.role, label: role.label })));
       setGroups(groupResult.data);
@@ -268,7 +305,7 @@ export function FormBuilder() {
         try {
           const parsed = JSON.parse(savedDraft) as Draft;
           if (parsed && typeof parsed === "object" && Array.isArray(parsed.fields) && Array.isArray(parsed.workflowSteps)) {
-            setDraft(parsed);
+            setDraft(normalizeFormConditions(parsed as RequestForm));
             setDraftStatus("Recovered local draft");
           }
         } catch {
@@ -305,15 +342,12 @@ export function FormBuilder() {
     () => draft.workflowSteps.filter((step) => previewStepApplies(step, previewResponses)),
     [draft.workflowSteps, previewResponses],
   );
-  const currentPreviewStep = previewStage === 0 ? null : previewSteps[previewStage - 1] || null;
+  const activePreviewStage = Math.min(previewStage, previewSteps.length);
+  const currentPreviewStep = activePreviewStage === 0 ? null : previewSteps[activePreviewStage - 1] || null;
   const previewFields = draft.fields.filter((field) =>
     (currentPreviewStep ? field.stepId === currentPreviewStep.id : !field.stepId) && fieldIsVisible(field, previewResponses),
   );
   const previewRoleLabel = (role: Role) => roles.find((candidate) => candidate.value === role)?.label || role.replaceAll("_", " ");
-  useEffect(() => {
-    if (previewStage <= previewSteps.length) return;
-    setPreviewStage(previewSteps.length);
-  }, [previewStage, previewSteps.length]);
   const patchField = (index: number, patch: Partial<FormField>) =>
     setDraft((current) => ({
       ...current,
@@ -375,7 +409,7 @@ export function FormBuilder() {
           allowedRoles: ["approver"],
           approvalMode: "sequential",
           approvalRule: "all",
-          condition: { logic: "and", rules: [] },
+          condition: { logic: "and", groups: [] },
         },
       ],
     }));
@@ -401,7 +435,7 @@ export function FormBuilder() {
       const fields = current.fields
         .filter((_, index) => index !== deleteFieldTarget.index)
         .map((field) => ({ ...field, condition: { ...field.condition, groups: (field.condition?.groups || []).map((group) => ({ ...group, rules: group.rules.filter((rule) => rule.fieldId !== removedId) })).filter((group) => group.rules.length) } }));
-      const workflowSteps = current.workflowSteps.map((step) => ({ ...step, condition: { ...step.condition, rules: (step.condition?.rules || []).filter((rule) => rule.fieldId !== removedId) } }));
+      const workflowSteps = current.workflowSteps.map((step) => ({ ...step, condition: { ...step.condition, groups: (step.condition?.groups || []).map((group) => ({ ...group, rules: group.rules.filter((rule) => rule.fieldId !== removedId) })).filter((group) => group.rules.length) } }));
       return { ...current, fields, workflowSteps };
     });
     setExpandedFieldIndex(null);
@@ -455,7 +489,7 @@ export function FormBuilder() {
           id: stepId,
           name: `${sourceStep.name} (Copy ${copyIndex + 1})`,
           allowedRoles: [...sourceStep.allowedRoles],
-          condition: { ...sourceStep.condition, rules: sourceStep.condition.rules.map((rule) => ({ ...rule })) },
+          condition: { ...sourceStep.condition, groups: (sourceStep.condition?.groups || []).map((group) => ({ ...group, rules: group.rules.map((rule) => ({ ...rule })) })) },
         };
       });
       const workflowSteps = [...current.workflowSteps];
@@ -630,12 +664,12 @@ export function FormBuilder() {
                 <h2>{draft.name || "Untitled form"}</h2>
                 <p>{draft.description}</p>
                 <nav className="preview-workflow" aria-label="Preview workflow">
-                  <button type="button" className={previewStage === 0 ? "active" : ""} onClick={() => setPreviewStage(0)}>
+                  <button type="button" className={activePreviewStage === 0 ? "active" : ""} onClick={() => setPreviewStage(0)}>
                     <span>1</span><strong>Request details</strong><small>Requester</small>
                   </button>
                   {previewSteps.map((step, index) => {
                     const stepRoles = step.allowedRoles?.length ? step.allowedRoles : [step.approverRole];
-                    return <button type="button" className={previewStage === index + 1 ? "active" : ""} onClick={() => setPreviewStage(index + 1)} key={step.id}>
+                    return <button type="button" className={activePreviewStage === index + 1 ? "active" : ""} onClick={() => setPreviewStage(index + 1)} key={step.id}>
                       <span>{index + 2}</span><strong>{step.name || `Step ${index + 1}`}</strong><small>{stepRoles.map(previewRoleLabel).join(", ")}</small>
                     </button>;
                   })}
@@ -652,8 +686,8 @@ export function FormBuilder() {
                 </div>
                 {!previewFields.length && <div className="preview-empty">No fields are assigned to this step.</div>}
                 <div className="preview-navigation">
-                  <button type="button" className="secondary" disabled={previewStage === 0} onClick={() => setPreviewStage((stage) => Math.max(0, stage - 1))}>Previous step</button>
-                  <button type="button" className="primary" disabled={previewStage >= previewSteps.length} onClick={() => setPreviewStage((stage) => Math.min(previewSteps.length, stage + 1))}>Next step</button>
+                  <button type="button" className="secondary" disabled={activePreviewStage === 0} onClick={() => setPreviewStage(Math.max(0, activePreviewStage - 1))}>Previous step</button>
+                  <button type="button" className="primary" disabled={activePreviewStage >= previewSteps.length} onClick={() => setPreviewStage(Math.min(previewSteps.length, activePreviewStage + 1))}>Next step</button>
                 </div>
               </div>
             ) : (
@@ -732,6 +766,9 @@ export function FormBuilder() {
                     </label>
                   ))}
                 </fieldset>
+                <div className="builder-workspace">
+                  <aside className="builder-step-rail" aria-label="Workflow steps"><header><strong>Steps ({draft.workflowSteps.length})</strong><button type="button" className="primary compact" onClick={addStep}><IconPlus size={14}/>Add</button></header><button type="button" className={!draft.workflowSteps.length ? "active" : ""} onClick={() => setBuilderTab("fields")}><span>0</span><span><strong>Request details</strong><small>{draft.fields.filter((field) => !field.stepId).length} fields</small></span></button>{draft.workflowSteps.map((step, index) => <button type="button" key={step.id} className={editingStepIndex === index ? "active" : ""} onClick={() => { setBuilderTab("steps"); setEditingStepIndex(index); }}><span>{index + 1}</span><span><strong>{step.name || `Step ${index + 1}`}</strong><small>{draft.fields.filter((field) => field.stepId === step.id).length} fields{step.condition?.groups?.length ? " · Conditional" : ""}</small></span></button>)}</aside>
+                  <section className="builder-workspace-main">
                 <div className="builder-tabs" role="tablist" aria-label="Form configuration">
                   <button type="button" role="tab" aria-selected={builderTab === "fields"} className={builderTab === "fields" ? "active" : ""} onClick={() => setBuilderTab("fields")}>Fields <span>{draft.fields.length}</span></button>
                   <button type="button" role="tab" aria-selected={builderTab === "steps"} className={builderTab === "steps" ? "active" : ""} onClick={() => setBuilderTab("steps")}>Workflow steps <span>{draft.workflowSteps.length}</span></button>
@@ -995,7 +1032,7 @@ export function FormBuilder() {
                     return <details key={step.id}>
                       <summary>
                         <span className="builder-item-number">{index + 1}</span>
-                        <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small><span className="builder-badge">Step {index + 1}</span><span>{stepRoles.map(previewRoleLabel).join(", ")}</span><span className="builder-badge">{step.approvalMode === "parallel" ? `Parallel · ${step.approvalRule === "any" ? "any" : "all"}` : "Sequential"}</span>{Boolean(step.condition?.rules?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
+                        <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small><span className="builder-badge">Step {index + 1}</span><span>{stepRoles.map(previewRoleLabel).join(", ")}</span><span className="builder-badge">{step.approvalMode === "parallel" ? `Parallel · ${step.approvalRule === "any" ? "any" : "all"}` : "Sequential"}</span>{Boolean(step.condition?.groups?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
                         <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingStepIndex(index); }}>Edit</button></span>
                       </summary>
                       <div className="builder-item-details"><p>{step.instructions || "No instructions provided."}</p><p><strong>Completed by:</strong> {stepRoles.map(previewRoleLabel).join(", ")}</p></div>
@@ -1056,7 +1093,7 @@ export function FormBuilder() {
                           }
                         />
                       </label>
-                      <div className="step-condition-editor"><div><strong>Conditions (show this step only if…)</strong><select value={step.condition?.logic||"and"} onChange={(event)=>patchStep(index,{condition:{logic:event.target.value as "and"|"or",rules:step.condition?.rules||[]}})}><option value="and">All conditions match (AND)</option><option value="or">Any condition matches (OR)</option></select></div>{(step.condition?.rules||[]).map((rule,ruleIndex)=><div className="condition-rule" key={ruleIndex}><select value={rule.fieldId} onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,fieldId:event.target.value};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}><option value="">Select an earlier field</option>{draft.fields.filter((field)=>!field.stepId||draft.workflowSteps.findIndex((candidate)=>candidate.id===field.stepId)<index).map((field)=><option value={field.id} key={field.id}>{field.label}</option>)}</select><select value={rule.operator} onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,operator:event.target.value as typeof rule.operator};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="contains">Contains</option><option value="is_empty">Is empty</option><option value="is_not_empty">Is not empty</option></select>{!rule.operator.includes("empty")&&<input value={rule.value} placeholder="Value" onChange={(event)=>{const rules=[...(step.condition?.rules||[])];rules[ruleIndex]={...rule,value:event.target.value};patchStep(index,{condition:{logic:step.condition?.logic||"and",rules}});}}/>}<button type="button" aria-label="Remove condition" onClick={()=>patchStep(index,{condition:{logic:step.condition?.logic||"and",rules:(step.condition?.rules||[]).filter((_,current)=>current!==ruleIndex)}})}><IconTrash size={15}/></button></div>)}<button type="button" className="secondary compact" onClick={()=>patchStep(index,{condition:{logic:step.condition?.logic||"and",rules:[...(step.condition?.rules||[]),{fieldId:"",operator:"equals",value:""}]}})}><IconPlus size={15}/>Add condition</button></div>
+                      <StepConditionEditor condition={step.condition || { logic: "and", groups: [] }} availableFields={draft.fields.filter((field)=>!field.stepId||draft.workflowSteps.findIndex((candidate)=>candidate.id===field.stepId)<index)} onChange={(condition) => patchStep(index, { condition })}/>
                     </article>
                   ))}
                     </div></div>
@@ -1064,6 +1101,9 @@ export function FormBuilder() {
                   </section>
                 </div>}
                 </>}
+                  </section>
+                  <aside className="builder-preview-rail"><header><strong>Live preview</strong></header><p>Test field visibility and workflow steps with editable answers. Preview data is never saved.</p><div><span>{draft.fields.length}</span><small>Fields</small><span>{draft.workflowSteps.length}</span><small>Steps</small></div><button type="button" className="secondary" onClick={() => { setPreviewResponses(initialFieldResponses(draft.fields)); setPreviewStage(0); setPreview(true); }}><IconEye size={16}/>Open preview</button></aside>
+                </div>
                 {!topBuilderActionVisible && <div className="builder-floating-actions" aria-label="Builder actions">
                   {builderTab === "fields" ? <button type="button" onClick={addField}><IconPlus size={18}/><span>Add field</span></button> : <button type="button" onClick={addStep}><IconPlus size={18}/><span>Add step</span></button>}
                 </div>}

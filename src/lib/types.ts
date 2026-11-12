@@ -73,7 +73,7 @@ export type WorkflowStep = {
   allowedRoles: Role[];
   approvalMode: "sequential" | "parallel";
   approvalRule: "any" | "all";
-  condition: { logic: "and" | "or"; rules: Array<{ fieldId:string; operator:"equals"|"not_equals"|"contains"|"is_empty"|"is_not_empty"; value:string }> };
+  condition: FieldCondition;
 };
 export type RequestForm = {
   id: string;

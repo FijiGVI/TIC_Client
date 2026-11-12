@@ -33,8 +33,8 @@ export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
     setSubmitting(true);
     setError('');
     try {
-      await login(identifier, password);
-      router.replace('/dashboard');
+      const result = await login(identifier, password);
+      router.replace(result === 'registration_required' ? '/register' : '/dashboard');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Login failed');
     } finally {

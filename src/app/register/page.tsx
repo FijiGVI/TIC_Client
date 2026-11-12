@@ -4,7 +4,7 @@ import { IconCircleCheck, IconLoader2 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { clearPendingMicrosoftRegistration, getPendingMicrosoftRegistration, type PendingMicrosoftRegistration } from '@/features/auth/pendingMicrosoftRegistration';
-import { api } from '@/lib/api';
+import { api, setTokens } from '@/lib/api';
 
 type RegistrationOptions = { companies: string[]; businessUnits: Array<{ id: string; companyName: string; name: string }> };
 const splitName = (name: string): [string, string] => { const parts = name.trim().split(/\s+/).filter(Boolean); return parts.length < 2 ? [parts[0] || '', ''] : [parts[0], parts.slice(1).join(' ')]; };
@@ -29,8 +29,10 @@ export default function RegisterPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (!identity) return; setSubmitting(true); setError('');
     try {
-      await api.post('/auth/registration', { idToken: identity.idToken, email: identity.email, firstName, lastName, companyName, businessUnitId });
-      clearPendingMicrosoftRegistration(); setSubmitted(true);
+      const payload = { email: identity.email, firstName, lastName, companyName, businessUnitId };
+      if (identity.provider === 'microsoft') await api.post('/auth/registration', { ...payload, idToken: identity.idToken });
+      else await api.post('/auth/act-registration', payload);
+      clearPendingMicrosoftRegistration(); setTokens(null); setSubmitted(true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Registration could not be submitted.'); }
     finally { setSubmitting(false); }
   };

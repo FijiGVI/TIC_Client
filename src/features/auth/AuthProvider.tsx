@@ -11,7 +11,7 @@ type AuthSession = { accessToken: string; refreshToken?: string; user: ActUser }
 type MicrosoftRequesterSession = { accessToken: string; identity: { email: string; name: string; linkedUserId: number | null } };
 type MicrosoftRegistrationRequired = { registrationRequired: true; identity: { email: string; name: string } };
 type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[]; roles?: Role[]; organizationType?: string | null; organizationName?: string | null; authMethod?: 'password' | 'microsoft' };
-type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<void>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string): Promise<'authenticated' | 'registration_required'>; logout(): Promise<void>; refreshUser(): Promise<void>; switchRole(role: Role): Promise<void> };
+type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<'authenticated' | 'registration_required'>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string): Promise<'authenticated' | 'registration_required'>; logout(): Promise<void>; refreshUser(): Promise<void>; switchRole(role: Role): Promise<void> };
 
 const defaultPermissions: Record<string, TicPermission[]> = {
   admin: ['users.manage', 'roles.manage', 'forms.manage', 'requests.create', 'requests.read.all', 'requests.update', 'requests.approve'],
@@ -112,11 +112,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokens(session);
         const context = await api.get<{ data: TicContext }>('/me');
         setUser(normalizeTicActor(context.data));
+        return 'authenticated';
       } catch {
         const session = await actApi.post<AuthSession>('/auth/login', { identifier, password });
         setTokens(session);
+        const registration = await api.get<{ registrationRequired: boolean; identity?: { email: string; name: string } }>('/auth/act-registration/status');
+        if (registration.registrationRequired && registration.identity) {
+          savePendingMicrosoftRegistration({ provider: 'act', email: registration.identity.email, name: registration.identity.name });
+          return 'registration_required';
+        }
         const context = await api.get<{ data: TicContext }>('/me');
         setUser(normalizeUser(session.user, context.data));
+        return 'authenticated';
       }
     },
     register: async () => {
@@ -125,10 +132,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithMicrosoft: async (idToken) => {
       const session = await actApi.post<AuthSession | MicrosoftRequesterSession | MicrosoftRegistrationRequired>('/auth/microsoft', { idToken });
       if (isMicrosoftRegistrationRequired(session)) {
-        savePendingMicrosoftRegistration({ idToken, email: session.identity.email, name: session.identity.name });
+        savePendingMicrosoftRegistration({ provider: 'microsoft', idToken, email: session.identity.email, name: session.identity.name });
         return 'registration_required';
       }
       setTokens(session);
+      if (isActAuthSession(session)) {
+        const registration = await api.get<{ registrationRequired: boolean; identity?: { email: string; name: string } }>('/auth/act-registration/status');
+        if (registration.registrationRequired && registration.identity) {
+          savePendingMicrosoftRegistration({ provider: 'act', email: registration.identity.email, name: registration.identity.name });
+          return 'registration_required';
+        }
+      }
       const context = await api.get<{ data: TicContext }>('/me');
       setUser(isActAuthSession(session) ? normalizeUser(session.user, context.data) : normalizeTicActor(context.data));
       return 'authenticated';

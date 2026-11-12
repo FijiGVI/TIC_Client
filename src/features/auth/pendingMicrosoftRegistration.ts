@@ -1,7 +1,8 @@
 const STORAGE_KEY = 'tic.microsoft.pending-registration';
 
 export type PendingMicrosoftRegistration = {
-  idToken: string;
+  provider: 'microsoft' | 'act';
+  idToken?: string;
   email: string;
   name: string;
 };
@@ -15,8 +16,9 @@ export function getPendingMicrosoftRegistration(): PendingMicrosoftRegistration 
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<PendingMicrosoftRegistration>;
-    if (!value.idToken || !value.email) return null;
-    return { idToken: value.idToken, email: value.email, name: value.name || '' };
+    if (!value.email || !['microsoft', 'act'].includes(value.provider || '')) return null;
+    if (value.provider === 'microsoft' && !value.idToken) return null;
+    return { provider: value.provider as 'microsoft' | 'act', idToken: value.idToken, email: value.email, name: value.name || '' };
   } catch {
     return null;
   }

@@ -15,7 +15,7 @@ type UserDraft = {
   organizationType: string; organizationName: string;
 };
 type ModalState = { mode: 'create' } | { mode: 'view' | 'edit'; user: ManagedUser } | null;
-type GuestRegistration = { id: string; email: string; name: string; companyName: string | null; businessUnitName: string | null; approvalStatus: 'pending'; createdAt: string };
+type GuestRegistration = { id: string; email: string; name: string; companyName: string | null; businessUnitName: string | null; approvalStatus: 'pending'; source: 'act' | 'microsoft'; createdAt: string };
 
 const emptyDraft: UserDraft = {
   firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '',
@@ -31,6 +31,7 @@ function assignedRoles(user: ManagedUser): Role[] {
 function organizationLabel(user: ManagedUser): string {
   return user.organizationName || user.organizationType?.replaceAll('_', ' ').toUpperCase() || 'Not specified';
 }
+const sourceLabel = (user: ManagedUser) => user.source === 'act' ? 'ACT' : user.source === 'microsoft' ? 'Microsoft SSO' : 'Local TIC';
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -149,6 +150,12 @@ export default function UsersPage() {
     }
   };
 
+  const reviewMicrosoftLink = async (user: ManagedUser, action: 'approve' | 'reject') => {
+    setError('');
+    try { await api.patch(`/users/${user.id}/microsoft-link`, { action }); await refresh(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to review the Microsoft identity link'); }
+  };
+
   const toggleRole = (role: Role, checked: boolean) => {
     const roles = checked ? [...new Set([...draft.roles, role])] : draft.roles.filter((item) => item !== role);
     if (!roles.length) { setError('Each account must have at least one role.'); return; }
@@ -171,8 +178,8 @@ export default function UsersPage() {
     {error && <div className="alert" role="alert">{error}</div>}
 
     {currentUser?.role === 'admin' && registrations.length > 0 && <section className="surface users-table-surface registration-review-surface">
-      <div className="surface-toolbar"><div><h2>Pending Microsoft registrations</h2><small>{registrations.length} awaiting review</small></div></div>
-      <div className="users-table-scroll"><table className="users-table"><thead><tr><th>Name</th><th>Email</th><th>Company</th><th>Business unit</th><th>Submitted</th><th>Actions</th></tr></thead><tbody>{registrations.map((registration) => <tr key={registration.id}><td><strong>{registration.name}</strong></td><td>{registration.email}</td><td>{registration.companyName || 'Not provided'}</td><td>{registration.businessUnitName || 'Not provided'}</td><td>{new Date(registration.createdAt).toLocaleString()}</td><td><div className="table-actions"><button type="button" className="primary compact" onClick={() => void reviewRegistration(registration, 'approve')}>Approve</button><button type="button" className="danger compact" onClick={() => void reviewRegistration(registration, 'reject')}>Reject</button></div></td></tr>)}</tbody></table></div>
+      <div className="surface-toolbar"><div><h2>Pending account registrations</h2><small>{registrations.length} awaiting review</small></div></div>
+      <div className="users-table-scroll"><table className="users-table"><thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Company</th><th>Business unit</th><th>Submitted</th><th>Actions</th></tr></thead><tbody>{registrations.map((registration) => <tr key={registration.id}><td><strong>{registration.name}</strong></td><td>{registration.email}</td><td><span className="status">{registration.source === 'act' ? 'ACT' : 'Microsoft SSO'}</span></td><td>{registration.companyName || 'Not provided'}</td><td>{registration.businessUnitName || 'Not provided'}</td><td>{new Date(registration.createdAt).toLocaleString()}</td><td><div className="table-actions"><button type="button" className="primary compact" onClick={() => void reviewRegistration(registration, 'approve')}>Approve</button><button type="button" className="danger compact" onClick={() => void reviewRegistration(registration, 'reject')}>Reject</button></div></td></tr>)}</tbody></table></div>
     </section>}
 
     <section className="surface users-table-surface">
@@ -184,16 +191,17 @@ export default function UsersPage() {
         </div>
       </div>
       <div className="users-table-scroll"><table className="users-table">
-        <thead><tr><th>Name</th><th>Email</th><th>Organization</th><th>Roles</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Organization</th><th>Roles</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
-          {!loading && users.length === 0 && <tr><td colSpan={6} className="table-empty">No users found.</td></tr>}
+          {!loading && users.length === 0 && <tr><td colSpan={7} className="table-empty">No users found.</td></tr>}
           {users.map((user) => <tr key={user.id}>
-            <td><strong>{user.name}</strong></td><td>{user.email}</td><td>{organizationLabel(user)}</td>
+            <td><strong>{user.name}</strong></td><td>{user.email}</td><td><span className="status">{sourceLabel(user)}</span>{user.identityLinkStatus === 'pending' && <small> Link awaiting review</small>}</td><td>{organizationLabel(user)}</td>
             <td>{assignedRoles(user).map((role) => roleLabel(role, roleOptions)).join(', ')}</td>
             <td><span className={`status ${user.active ? 'completed' : 'rejected'}`}>{user.active ? 'Active' : 'Inactive'}</span></td>
             <td><div className="table-actions">
               <button type="button" className="secondary compact" onClick={() => setModal({ mode: 'view', user })}><IconEye size={15} /> View</button>
               {source === 'tic' && <><button type="button" className="secondary compact" onClick={() => openEdit(user)}><IconPencil size={15} /> Edit</button>
+                {user.identityLinkStatus === 'pending' && currentUser?.role === 'admin' && <><button type="button" className="primary compact" onClick={() => void reviewMicrosoftLink(user, 'approve')}>Approve identity link</button><button type="button" className="danger compact" onClick={() => void reviewMicrosoftLink(user, 'reject')}>Reject link</button></>}
                 <button type="button" className={user.active ? 'danger compact' : 'secondary compact'} onClick={() => void setActive(user)}>{user.active ? 'Deactivate' : 'Restore'}</button></>}
             </div></td>
           </tr>)}
@@ -237,7 +245,7 @@ function UserDetails({ user, roleOptions }: { user: ManagedUser; roleOptions: Ro
     <div><dt>First name</dt><dd>{user.firstName || 'Not provided'}</dd></div><div><dt>Middle name</dt><dd>{user.middleName || 'Not provided'}</dd></div>
     <div><dt>Last name</dt><dd>{user.lastName || 'Not provided'}</dd></div><div><dt>Email</dt><dd>{user.email}</dd></div>
     <div><dt>Organization</dt><dd>{organizationLabel(user)}</dd></div><div><dt>Roles</dt><dd>{assignedRoles(user).map((role) => roleLabel(role, roleOptions)).join(', ')}</dd></div>
-    <div><dt>Status</dt><dd>{user.active ? 'Active' : 'Inactive'}</dd></div><div><dt>Created</dt><dd>{new Date(user.createdAt).toLocaleString()}</dd></div>
+    <div><dt>Source</dt><dd>{sourceLabel(user)}</dd></div><div><dt>Status</dt><dd>{user.active ? 'Active' : 'Inactive'}{user.identityLinkStatus === 'pending' ? ' · Microsoft link awaiting review' : ''}</dd></div><div><dt>Created</dt><dd>{new Date(user.createdAt).toLocaleString()}</dd></div>
     <div><dt>Last updated</dt><dd>{new Date(user.updatedAt).toLocaleString()}</dd></div>
   </dl></>;
 }

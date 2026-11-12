@@ -192,7 +192,8 @@ export type ManagedUser = {
   mustChangePassword: boolean;
   createdAt: string;
   updatedAt: string;
-  source?: "tic" | "act";
+  source?: "tic" | "act" | "microsoft";
+  identityLinkStatus?: "pending" | null;
 };
 
 export type PaginationMeta = {

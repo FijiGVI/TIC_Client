@@ -43,3 +43,24 @@
 .step-radio-options span {
   font-weight: 600;
 }
+
+.workflow-decision {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.workflow-decision > label {
+  margin: 0;
+}
+
+.workflow-decision textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.workflow-decision .modal-actions {
+  margin-top: 0;
+}

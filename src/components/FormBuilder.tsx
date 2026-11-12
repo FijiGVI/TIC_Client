@@ -59,6 +59,24 @@ const blank = (): Draft => ({
   allowedRequesterRoles: ["requester"],
 });
 const initialMeta: PaginationMeta = { page: 1, pageSize: 15, total: 0, totalPages: 1 };
+const fieldValidationIssue = (field: FormField): string | null => {
+  const { min, max, minLength, maxLength } = field.validation;
+  if (min !== undefined && max !== undefined && max < min) return "Maximum value must be greater than or equal to minimum value.";
+  if (minLength !== undefined && maxLength !== undefined && maxLength < minLength) return "Maximum length must be greater than or equal to minimum length.";
+  if (field.validation.pattern) {
+    try { new RegExp(field.validation.pattern, field.validation.patternFlags); }
+    catch { return "Pattern must be a valid regular expression."; }
+  }
+  if (typeof field.defaultValue === "number") {
+    if (min !== undefined && field.defaultValue < min) return "Default value must be greater than or equal to minimum value.";
+    if (max !== undefined && field.defaultValue > max) return "Default value must be less than or equal to maximum value.";
+  }
+  if (typeof field.defaultValue === "string") {
+    if (minLength !== undefined && field.defaultValue.length < minLength) return "Default value must meet the minimum length.";
+    if (maxLength !== undefined && field.defaultValue.length > maxLength) return "Default value must not exceed the maximum length.";
+  }
+  return null;
+};
 type LegacyCondition = Partial<FieldCondition> & { rules?: FieldCondition["groups"][number]["rules"] };
 
 const normalizeCondition = (condition?: LegacyCondition): FieldCondition => {
@@ -141,10 +159,9 @@ function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onVal
   const numericChange = (key: "min" | "max", raw: string, value: number) => {
     if (raw === "") { onValidationPatch({ [key]: undefined }); return; }
     if (!Number.isFinite(value) || value < 0) return;
-    if (key === "min" && field.validation.max !== undefined && value > field.validation.max) return;
-    if (key === "max" && field.validation.min !== undefined && value < field.validation.min) return;
     onValidationPatch({ [key]: value });
   };
+  const validationIssue = fieldValidationIssue(field);
   return <div className="inline-field-editor" onClick={(event) => event.stopPropagation()}>
     <div className="field-settings-grid">
       <label>Field label<input value={field.label} onChange={(event) => onPatch({ label: event.target.value, id: (slug(event.target.value).replaceAll("-", "_") || `field_${index + 1}`).slice(0, 50) })}/></label>
@@ -157,8 +174,8 @@ function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onVal
       {field.type === 'csv' ? <div className="field-type-note"><strong>CSV upload</strong><small>Accepts one CSV file up to 10 MB. The uploaded file remains available from the submitted request.</small></div> : field.type === 'checkbox' ? <label className="check"><input type="checkbox" checked={field.defaultValue === true} onChange={(event) => onPatch({ defaultValue: event.target.checked })}/>Checked by default</label> : <label>Default value{['select', 'radio'].includes(field.type) ? <select value={String(field.defaultValue ?? "")} onChange={(event) => onPatch({ defaultValue: event.target.value || null })}><option value="">No default value</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <input type={['number', 'date', 'time'].includes(field.type) ? field.type : 'text'} min={field.type === 'number' ? 0 : undefined} value={String(field.defaultValue ?? "")} onChange={(event) => { if (field.type === 'number' && event.target.value !== '') { const value = event.target.valueAsNumber; if (!Number.isFinite(value) || value < 0 || (field.validation.min !== undefined && value < field.validation.min) || (field.validation.max !== undefined && value > field.validation.max)) return; onPatch({ defaultValue: value }); } else onPatch({ defaultValue: event.target.value || null }); }}/>}</label>}
       {!['checkbox', 'radio', 'select', 'csv'].includes(field.type) && <label>Placeholder<input maxLength={300} value={field.placeholder || ""} placeholder="Text shown before the user enters a value" onChange={(event) => onPatch({ placeholder: event.target.value })}/></label>}
     </div>
-    {['text', 'textarea', 'email'].includes(field.type) && <fieldset className="validation-editor"><legend>Validation rules</legend><label>Minimum length<input type="number" min="0" max="10000" value={field.validation.minLength ?? ""} onChange={(event) => onValidationPatch({ minLength: event.target.value === '' ? undefined : Math.max(0, event.target.valueAsNumber) })}/></label><label>Maximum length<input type="number" min="1" max="10000" value={field.validation.maxLength ?? ""} onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== '' && (value < 1 || (field.validation.minLength !== undefined && value < field.validation.minLength))) return; onValidationPatch({ maxLength: event.target.value === '' ? undefined : value }); }}/></label><label className="validation-pattern">Pattern (regular expression)<input maxLength={300} value={field.validation.pattern ?? ""} placeholder="Example: ^ABC-[0-9]{4}$" onChange={(event) => onValidationPatch({ pattern: event.target.value || undefined })}/></label><label>Pattern flags<select disabled={!field.validation.pattern} value={field.validation.patternFlags ?? ""} onChange={(event) => onValidationPatch({ patternFlags: event.target.value || undefined })}><option value="">Case-sensitive</option><option value="i">Ignore case</option><option value="m">Multiline</option><option value="im">Ignore case + multiline</option></select></label><label className="validation-message">Error message<input maxLength={300} value={field.validation.message ?? ""} onChange={(event) => onValidationPatch({ message: event.target.value || undefined })}/></label></fieldset>}
-    {field.type === 'number' && <fieldset className="validation-editor numeric-validation"><legend>Validation rules</legend><label>Minimum value<input type="number" min="0" value={field.validation.min ?? ""} onChange={(event) => numericChange('min', event.target.value, event.target.valueAsNumber)}/></label><label>Maximum value<input type="number" min="0" value={field.validation.max ?? ""} onChange={(event) => numericChange('max', event.target.value, event.target.valueAsNumber)}/></label><small className="validation-help">Only non-negative numbers are accepted. Maximum must be greater than or equal to minimum.</small></fieldset>}
+    {['text', 'textarea', 'email'].includes(field.type) && <fieldset className="validation-editor"><legend>Validation rules</legend><label>Minimum length<input type="number" min="0" max="10000" value={field.validation.minLength ?? ""} onChange={(event) => onValidationPatch({ minLength: event.target.value === '' ? undefined : Math.max(0, event.target.valueAsNumber) })}/></label><label>Maximum length<input type="number" min="1" max="10000" value={field.validation.maxLength ?? ""} onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== '' && (!Number.isFinite(value) || value < 1)) return; onValidationPatch({ maxLength: event.target.value === '' ? undefined : value }); }}/></label><label className="validation-pattern">Pattern (regular expression)<input maxLength={300} value={field.validation.pattern ?? ""} placeholder="Example: ^ABC-[0-9]{4}$" onChange={(event) => onValidationPatch({ pattern: event.target.value || undefined })}/></label><label>Pattern flags<select disabled={!field.validation.pattern} value={field.validation.patternFlags ?? ""} onChange={(event) => onValidationPatch({ patternFlags: event.target.value || undefined })}><option value="">Case-sensitive</option><option value="i">Ignore case</option><option value="m">Multiline</option><option value="im">Ignore case + multiline</option></select></label><label className="validation-message">Error message<input maxLength={300} value={field.validation.message ?? ""} onChange={(event) => onValidationPatch({ message: event.target.value || undefined })}/></label>{validationIssue && <small className="field-error validation-help" role="alert">{validationIssue}</small>}</fieldset>}
+    {field.type === 'number' && <fieldset className="validation-editor numeric-validation"><legend>Validation rules</legend><label>Minimum value<input type="number" min="0" aria-invalid={Boolean(validationIssue)} value={field.validation.min ?? ""} onChange={(event) => numericChange('min', event.target.value, event.target.valueAsNumber)}/></label><label>Maximum value<input type="number" min="0" aria-invalid={Boolean(validationIssue)} value={field.validation.max ?? ""} onChange={(event) => numericChange('max', event.target.value, event.target.valueAsNumber)}/></label><small className="validation-help">Only non-negative numbers are accepted. Maximum must be greater than or equal to minimum.</small>{validationIssue && <small className="field-error validation-help" role="alert">{validationIssue}</small>}</fieldset>}
     <label className="check"><input type="checkbox" checked={field.required} onChange={(event) => onPatch({ required: event.target.checked })}/>Required</label>
     <FieldConditionEditor field={field} fieldIndex={index} fields={fields} onChange={(condition) => onPatch({ condition })}/>
   </div>;
@@ -501,6 +518,14 @@ export function FormBuilder() {
   };
   const save = async (event?: FormEvent) => {
     event?.preventDefault();
+    const invalidFieldIndex = draft.fields.findIndex((field) => fieldValidationIssue(field));
+    if (invalidFieldIndex >= 0) {
+      const invalidField = draft.fields[invalidFieldIndex];
+      setBuilderTab("fields");
+      setExpandedFieldIndex(invalidFieldIndex);
+      setError(`${invalidField.label || `Field ${invalidFieldIndex + 1}`}: ${fieldValidationIssue(invalidField)}`);
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -921,6 +946,7 @@ export function FormBuilder() {
                               type="number"
                               min="0"
                               max="10000"
+                              aria-invalid={Boolean(fieldValidationIssue(field))}
                               value={field.validation.minLength ?? ""}
                               onChange={(event) =>
                                 patchFieldValidation(index, {
@@ -935,6 +961,7 @@ export function FormBuilder() {
                               type="number"
                               min="1"
                               max="10000"
+                              aria-invalid={Boolean(fieldValidationIssue(field))}
                               value={field.validation.maxLength ?? ""}
                               onChange={(event) =>
                                 patchFieldValidation(index, {
@@ -985,6 +1012,7 @@ export function FormBuilder() {
                           <small className="validation-help">
                             Rules are checked in the browser and enforced again by the API.
                           </small>
+                          {fieldValidationIssue(field) && <small className="field-error validation-help" role="alert">{fieldValidationIssue(field)}</small>}
                         </fieldset>
                       )}
                       {field.type === "number" && (
@@ -995,8 +1023,9 @@ export function FormBuilder() {
                             <input
                               type="number"
                               min="0"
+                              aria-invalid={Boolean(fieldValidationIssue(field))}
                               value={field.validation.min ?? ""}
-                              onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== "" && (!Number.isFinite(value) || value < 0 || (field.validation.max !== undefined && value > field.validation.max))) return; patchFieldValidation(index, { min: event.target.value === "" ? undefined : value }); }}
+                              onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== "" && (!Number.isFinite(value) || value < 0)) return; patchFieldValidation(index, { min: event.target.value === "" ? undefined : value }); }}
                             />
                           </label>
                           <label>
@@ -1004,10 +1033,13 @@ export function FormBuilder() {
                             <input
                               type="number"
                               min="0"
+                              aria-invalid={Boolean(fieldValidationIssue(field))}
                               value={field.validation.max ?? ""}
-                              onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== "" && (!Number.isFinite(value) || value < 0 || (field.validation.min !== undefined && value < field.validation.min))) return; patchFieldValidation(index, { max: event.target.value === "" ? undefined : value }); }}
+                              onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== "" && (!Number.isFinite(value) || value < 0)) return; patchFieldValidation(index, { max: event.target.value === "" ? undefined : value }); }}
                             />
                           </label>
+                          <small className="validation-help">Only non-negative numbers are accepted. Maximum must be greater than or equal to minimum.</small>
+                          {fieldValidationIssue(field) && <small className="field-error validation-help" role="alert">{fieldValidationIssue(field)}</small>}
                         </fieldset>
                       )}
                       <FieldConditionEditor field={field} fieldIndex={index} fields={draft.fields} onChange={(condition) => patchField(index, { condition })}/>

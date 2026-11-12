@@ -46,17 +46,15 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
   const [createdTo, setCreatedTo] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [stepResponses, setStepResponses] = useState<Record<string, unknown>>({});
+  const [decisionRemarks, setDecisionRemarks] = useState("");
   const selectedStep = selected?.currentStep === null || selected?.currentStep === undefined ? null : selected.formSnapshot.workflowSteps[selected.currentStep];
-  const allSelectedStepFields = selectedStep && selected
+  const allSelectedStepFields = useMemo(() => selectedStep && selected
     ? selected.formSnapshot.fields.filter((field) => field.stepId === selectedStep.id)
-    : [];
+    : [], [selected, selectedStep]);
   const selectedStepFields = useMemo(
     () => allSelectedStepFields.filter((field) => fieldIsVisible(field, stepResponses)),
     [allSelectedStepFields, stepResponses],
   );
-  useEffect(() => {
-    setStepResponses(initialFieldResponses(allSelectedStepFields));
-  }, [selected?.id, selected?.currentStep]);
   const canCompleteSelectedStep = Boolean(
     selectedStep &&
     user &&
@@ -68,6 +66,13 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
     request.currentStep === null || request.currentStep === undefined
       ? null
       : request.formSnapshot.workflowSteps[request.currentStep] || null;
+  const openRequest = (request: ServiceRequest) => {
+    const step = currentStepFor(request);
+    const stepFields = step ? request.formSnapshot.fields.filter((field) => field.stepId === step.id) : [];
+    setSelected(request);
+    setStepResponses(initialFieldResponses(stepFields));
+    setDecisionRemarks("");
+  };
   const isPendingForCurrentUser = (request: ServiceRequest) => {
     const step = currentStepFor(request);
     return Boolean(
@@ -136,9 +141,10 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
     setActing(true);
     setError("");
     try {
-      await api.post(`/requests/${selected.id}/workflow-action`, { action, responses: action === "approve" ? stepResponses : {} });
+      await api.post(`/requests/${selected.id}/workflow-action`, { action, responses: action === "approve" ? stepResponses : {}, remarks: decisionRemarks.trim() || undefined });
       setSelected(null);
       setStepResponses({});
+      setDecisionRemarks("");
       await load();
     } catch (reason) {
       setError(
@@ -252,7 +258,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
               <button
                 className={`request-row ${managed ? "managed" : ""}`}
                 key={request.id}
-                onClick={() => { setSelected(request); setStepResponses({}); }}
+                onClick={() => openRequest(request)}
               >
                 <strong>{request.referenceNumber}</strong>
                 <span className="request-name">
@@ -302,7 +308,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
       </section>
 
       {selected && (
-        <div className="modal-backdrop" onMouseDown={() => setSelected(null)}>
+        <div className="modal-backdrop" onMouseDown={() => { setSelected(null); setDecisionRemarks(""); }}>
           <section
             className="modal request-detail"
             role="dialog"
@@ -313,7 +319,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
             <button
               className="modal-close"
               aria-label="Close request details"
-              onClick={() => setSelected(null)}
+              onClick={() => { setSelected(null); setDecisionRemarks(""); }}
             >
               ×
             </button>
@@ -431,10 +437,13 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
               </>
             )}
             {canCompleteSelectedStep && selected.status === "in_review" && (
-              <div className="modal-actions">
+              <div className="workflow-decision">
+                <label>Decision remarks <small>Required when rejecting</small><textarea maxLength={2000} value={decisionRemarks} placeholder="Explain the decision for the requester and audit history." onChange={(event) => setDecisionRemarks(event.target.value)} /></label>
+                <div className="modal-actions">
                 <button
                   className="danger"
-                  disabled={acting}
+                  disabled={acting || !decisionRemarks.trim()}
+                  title={decisionRemarks.trim() ? "Reject this request" : "Enter a rejection reason first"}
                   onClick={() => void act("reject")}
                 >
                   Reject
@@ -447,6 +456,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 >
                   {acting ? "Updating…" : "Complete step"}
                 </button>
+                </div>
               </div>
             )}
           </section>

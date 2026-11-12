@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
-import { actApi } from '@/lib/api';
+import { api } from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
     setSaving(true);
     try {
-      const result = await actApi.post<{ message: string }>('/auth/reset-password', { email });
+      const result = await api.post<{ message: string }>('/auth/forgot-password', { email });
       setMessage(result.message);
     } catch {
       setMessage('If an account exists with this email, password reset instructions will be sent.');

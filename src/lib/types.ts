@@ -17,6 +17,8 @@ export type User = {
   roles: Role[];
   organizationType?: string | null;
   organizationName?: string | null;
+  departmentId?: string | null;
+  departmentName?: string | null;
   permissions: TicPermission[];
   mustChangePassword: boolean;
   authMethod?: "password" | "microsoft";

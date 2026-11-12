@@ -15,7 +15,9 @@ type UserDraft = {
   organizationType: string; organizationName: string;
 };
 type ModalState = { mode: 'create' } | { mode: 'view' | 'edit'; user: ManagedUser } | null;
-type GuestRegistration = { id: string; email: string; name: string; companyName: string | null; businessUnitName: string | null; approvalStatus: 'pending'; source: 'act' | 'microsoft'; createdAt: string };
+type GuestRegistration = { id: string; email: string; name: string; firstName: string; middleName: string | null; lastName: string; companyName: string | null; businessUnitId: string | null; businessUnitName: string | null; approvalStatus: 'pending'; source: 'act' | 'microsoft'; createdAt: string };
+type RegistrationOptions = { companies: string[]; departments: Array<{ id: string; name: string }> };
+type RegistrationDraft = { firstName: string; middleName: string; lastName: string; email: string; companyName: string; departmentId: string };
 
 const emptyDraft: UserDraft = {
   firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '',
@@ -46,6 +48,9 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [registrations, setRegistrations] = useState<GuestRegistration[]>([]);
+  const [registrationOptions, setRegistrationOptions] = useState<RegistrationOptions>({ companies: [], departments: [] });
+  const [editingRegistration, setEditingRegistration] = useState<GuestRegistration | null>(null);
+  const [registrationDraft, setRegistrationDraft] = useState<RegistrationDraft>({ firstName: '', middleName: '', lastName: '', email: '', companyName: '', departmentId: '' });
 
   const load = useCallback(
     () => api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/${source === 'tic' ? 'users' : 'act-identities'}?page=${page}&pageSize=20`),
@@ -83,6 +88,34 @@ export default function UsersPage() {
   }, [currentUser?.role]);
 
   useEffect(() => { void loadRegistrations().catch((reason) => setError(reason instanceof Error ? reason.message : 'Unable to load registration requests')); }, [loadRegistrations]);
+
+  useEffect(() => {
+    if (currentUser?.role !== 'admin') return;
+    void api.get<{ data: RegistrationOptions }>('/auth/registration/options')
+      .then((response) => setRegistrationOptions(response.data))
+      .catch((reason) => setError(reason instanceof Error ? reason.message : 'Unable to load registration reference data'));
+  }, [currentUser?.role]);
+
+  const openRegistrationEdit = (registration: GuestRegistration) => {
+    setError('');
+    setEditingRegistration(registration);
+    setRegistrationDraft({
+      firstName: registration.firstName || '', middleName: registration.middleName || '', lastName: registration.lastName || '',
+      email: registration.email, companyName: registration.companyName || '', departmentId: registration.businessUnitId || '',
+    });
+  };
+
+  const saveRegistration = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingRegistration) return;
+    setSaving(true); setError('');
+    try {
+      await api.patch(`/registration-requests/${editingRegistration.id}/details`, registrationDraft);
+      setEditingRegistration(null);
+      await Promise.all([loadRegistrations(), refresh()]);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to update this registration'); }
+    finally { setSaving(false); }
+  };
 
   const reviewRegistration = async (registration: GuestRegistration, action: 'approve' | 'reject') => {
     setError('');
@@ -179,8 +212,19 @@ export default function UsersPage() {
 
     {currentUser?.role === 'admin' && registrations.length > 0 && <section className="surface users-table-surface registration-review-surface">
       <div className="surface-toolbar"><div><h2>Pending account registrations</h2><small>{registrations.length} awaiting review</small></div></div>
-      <div className="users-table-scroll"><table className="users-table"><thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Company</th><th>Business unit</th><th>Submitted</th><th>Actions</th></tr></thead><tbody>{registrations.map((registration) => <tr key={registration.id}><td><strong>{registration.name}</strong></td><td>{registration.email}</td><td><span className="status">{registration.source === 'act' ? 'ACT' : 'Microsoft SSO'}</span></td><td>{registration.companyName || 'Not provided'}</td><td>{registration.businessUnitName || 'Not provided'}</td><td>{new Date(registration.createdAt).toLocaleString()}</td><td><div className="table-actions"><button type="button" className="primary compact" onClick={() => void reviewRegistration(registration, 'approve')}>Approve</button><button type="button" className="danger compact" onClick={() => void reviewRegistration(registration, 'reject')}>Reject</button></div></td></tr>)}</tbody></table></div>
+      <div className="users-table-scroll"><table className="users-table"><thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Company</th><th>Department</th><th>Submitted</th><th>Actions</th></tr></thead><tbody>{registrations.map((registration) => <tr key={registration.id}><td><strong>{registration.name}</strong></td><td>{registration.email}</td><td><span className="status">{registration.source === 'act' ? 'ACT' : 'Microsoft SSO'}</span></td><td>{registration.companyName || 'Not provided'}</td><td>{registration.businessUnitName || 'Not provided'}</td><td>{new Date(registration.createdAt).toLocaleString()}</td><td><div className="table-actions"><button type="button" className="secondary compact" onClick={() => openRegistrationEdit(registration)}><IconPencil size={15} /> Edit</button><button type="button" className="primary compact" onClick={() => void reviewRegistration(registration, 'approve')}>Approve</button><button type="button" className="danger compact" onClick={() => void reviewRegistration(registration, 'reject')}>Reject</button></div></td></tr>)}</tbody></table></div>
     </section>}
+
+    {editingRegistration && <div className="modal-backdrop" onMouseDown={() => setEditingRegistration(null)}><section className="modal user-modal" role="dialog" aria-modal="true" aria-labelledby="registration-edit-title" onMouseDown={(event) => event.stopPropagation()}>
+      <button type="button" className="modal-close" aria-label="Close" onClick={() => setEditingRegistration(null)}>×</button>
+      <form onSubmit={saveRegistration}><p className="eyebrow">Pending registration</p><h2 id="registration-edit-title">Edit user details</h2>
+        <div className="name-fields"><label>First name<input required maxLength={100} value={registrationDraft.firstName} onChange={(event) => setRegistrationDraft({ ...registrationDraft, firstName: event.target.value })}/></label><label>Middle name <small>Optional</small><input maxLength={100} value={registrationDraft.middleName} onChange={(event) => setRegistrationDraft({ ...registrationDraft, middleName: event.target.value })}/></label><label>Last name<input required maxLength={100} value={registrationDraft.lastName} onChange={(event) => setRegistrationDraft({ ...registrationDraft, lastName: event.target.value })}/></label></div>
+        <label>Email<input required type="email" value={registrationDraft.email} onChange={(event) => setRegistrationDraft({ ...registrationDraft, email: event.target.value })}/></label>
+        <div className="organization-fields"><label>Company<select required value={registrationDraft.companyName} onChange={(event) => setRegistrationDraft({ ...registrationDraft, companyName: event.target.value })}><option value="">Select company</option>{registrationOptions.companies.map((company) => <option value={company} key={company}>{company}</option>)}</select></label><label>Department<select required value={registrationDraft.departmentId} onChange={(event) => setRegistrationDraft({ ...registrationDraft, departmentId: event.target.value })}><option value="">Select department</option>{registrationOptions.departments.map((department) => <option value={department.id} key={department.id}>{department.name}</option>)}</select></label></div>
+        <p><small>Identity source and submission date are system-managed and cannot be edited.</small></p>
+        <div className="modal-actions"><button type="button" className="secondary" onClick={() => setEditingRegistration(null)}>Cancel</button><button type="submit" className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button></div>
+      </form>
+    </section></div>}
 
     <section className="surface users-table-surface">
       <div className="surface-toolbar">

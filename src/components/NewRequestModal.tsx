@@ -71,9 +71,9 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
 
   useEffect(() => {
     Promise.all([api.get<{ data: RequestForm[] }>('/forms/public'), api.get<{ data: DepartmentOption[] }>('/departments')])
-      .then(([formResponse, departmentResponse]) => { setForms(formResponse.data); setFormId(formResponse.data[0]?.id || ''); setDepartments(departmentResponse.data); })
+      .then(([formResponse, departmentResponse]) => { setForms(formResponse.data); setFormId(formResponse.data[0]?.id || ''); setDepartments(departmentResponse.data); setDepartmentId(user?.departmentId || ''); })
       .catch((reason: Error) => setError(reason.message));
-  }, []);
+  }, [user?.departmentId]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose(); };
     document.addEventListener('keydown', close);
@@ -121,7 +121,7 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
                   <form id="new-request-form" noValidate onSubmit={submit}>
                     <div className="request-context-grid">
                       <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { const nextId = event.target.value; const nextForm = forms.find((form) => form.id === nextId); setFormId(nextId); setResponses(initialFieldResponses(nextForm?.fields.filter((field) => !field.stepId) || [])); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
-                      <label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
+                      <label><span>Department</span><small>Automatically assigned from your user profile.</small><select required disabled value={departmentId}><option value="">Department not configured</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
                       <div className="selected-service-summary"><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p></div>
                     </div>
                     <div className="dynamic-fields">{visibleRequesterFields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div>

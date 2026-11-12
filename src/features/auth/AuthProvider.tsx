@@ -10,7 +10,7 @@ type ActUser = { id: number; email: string; firstName?: string | null; lastName?
 type AuthSession = { accessToken: string; refreshToken?: string; user: ActUser };
 type MicrosoftRequesterSession = { accessToken: string; identity: { email: string; name: string; linkedUserId: number | null } };
 type MicrosoftRegistrationRequired = { registrationRequired: true; identity: { email: string; name: string } };
-type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[]; roles?: Role[]; organizationType?: string | null; organizationName?: string | null; authMethod?: 'password' | 'microsoft' };
+type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[]; roles?: Role[]; organizationType?: string | null; organizationName?: string | null; businessUnitId?: string | null; businessUnitName?: string | null; authMethod?: 'password' | 'microsoft' };
 type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<'authenticated' | 'registration_required'>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string): Promise<'authenticated' | 'registration_required'>; logout(): Promise<void>; refreshUser(): Promise<void>; switchRole(role: Role): Promise<void> };
 
 const defaultPermissions: Record<string, TicPermission[]> = {
@@ -39,6 +39,8 @@ function normalizeUser(user: ActUser, context?: TicContext): User {
     roles: context?.roles || [role],
     organizationType: context?.organizationType,
     organizationName: context?.organizationName,
+    departmentId: context?.businessUnitId,
+    departmentName: context?.businessUnitName,
     permissions: context?.permissions || defaultPermissions[role] || [],
     mustChangePassword: Boolean(user.shouldChangePassword),
     authMethod: context?.authMethod || user.authMethod || 'password',
@@ -54,6 +56,8 @@ function normalizeTicActor(context: TicContext): User {
     roles: context.roles || [context.actor.role],
     organizationType: context.organizationType,
     organizationName: context.organizationName,
+    departmentId: context.businessUnitId,
+    departmentName: context.businessUnitName,
     permissions: context.permissions,
     mustChangePassword: false,
     authMethod: context.authMethod || 'password',
@@ -61,7 +65,7 @@ function normalizeTicActor(context: TicContext): User {
 }
 
 function isActAuthSession(session: AuthSession | MicrosoftRequesterSession): session is AuthSession {
-  return 'user' in session;
+  return 'user' in session && typeof session.user.id === 'number';
 }
 
 function isMicrosoftRegistrationRequired(
@@ -116,11 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         const session = await actApi.post<AuthSession>('/auth/login', { identifier, password });
         setTokens(session);
-        const registration = await api.get<{ registrationRequired: boolean; identity?: { email: string; name: string } }>('/auth/act-registration/status');
-        if (registration.registrationRequired && registration.identity) {
-          savePendingMicrosoftRegistration({ provider: 'act', email: registration.identity.email, name: registration.identity.name });
-          return 'registration_required';
-        }
         const context = await api.get<{ data: TicContext }>('/me');
         setUser(normalizeUser(session.user, context.data));
         return 'authenticated';
@@ -136,13 +135,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return 'registration_required';
       }
       setTokens(session);
-      if (isActAuthSession(session)) {
-        const registration = await api.get<{ registrationRequired: boolean; identity?: { email: string; name: string } }>('/auth/act-registration/status');
-        if (registration.registrationRequired && registration.identity) {
-          savePendingMicrosoftRegistration({ provider: 'act', email: registration.identity.email, name: registration.identity.name });
-          return 'registration_required';
-        }
-      }
       const context = await api.get<{ data: TicContext }>('/me');
       setUser(isActAuthSession(session) ? normalizeUser(session.user, context.data) : normalizeTicActor(context.data));
       return 'authenticated';

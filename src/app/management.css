@@ -59,7 +59,9 @@
 .field-defaults-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 18px; }
 .inline-field-editor { display: grid; gap: 14px; padding: 16px; border-top: 1px solid var(--line); background: white; }
 .inline-field-editor label { margin-bottom: 12px; }
-.inline-field-editor input,.inline-field-editor select { min-height: 40px; }
+.inline-field-editor input:not([type="checkbox"]),.inline-field-editor select { min-height: 40px; }
+.inline-field-editor .check { display: inline-flex; align-items: center; gap: 9px; margin: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; background: #f8fafc; }
+.inline-field-editor .check input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; flex: none; margin: 0; accent-color: var(--blue); }
 .inline-field-editor .field-help, .inline-field-editor .options { width: 100%; }
 .inline-field-editor > .check { justify-self: start; }
 .field-drag-handle { flex: none; color: var(--muted); cursor: grab; }
@@ -196,6 +198,13 @@
 .builder-modal-footer .primary { min-width: 120px; }
 .duplicate-builder-modal { position: relative; width: min(480px, calc(100vw - 32px)); max-width: none; }
 .duplicate-builder-modal > p:not(.eyebrow) { color: var(--muted); line-height: 1.5; }
+.builder-confirm-modal { position: relative; width: min(460px, calc(100vw - 28px)); max-width: none; padding: 28px; border: 1px solid #f4c7c3; box-shadow: 0 24px 70px rgb(16 42 67 / 28%); }
+.builder-confirm-modal .confirm-modal-icon { display: grid; width: 46px; height: 46px; place-items: center; margin-bottom: 18px; border-radius: 12px; background: #fff0ee; color: var(--danger); }
+.builder-confirm-modal h2 { margin-bottom: 10px; font-size: 22px; line-height: 1.25; }
+.builder-confirm-modal > p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.builder-confirm-modal .modal-actions { margin-top: 24px; }
+.builder-confirm-modal .confirm-delete { background: var(--danger); color: #fff; }
+.builder-confirm-modal .confirm-delete:hover { filter: brightness(.92); }
 .builder-floating-actions { position: fixed; z-index: 90; left: calc(248px + max(24px, calc(env(safe-area-inset-left) + 14px))); bottom: max(24px, calc(env(safe-area-inset-bottom) + 14px)); display: grid; gap: 8px; animation: builder-action-in .16s ease-out; }
 .sidebar-collapsed .builder-floating-actions { left: calc(76px + max(24px, calc(env(safe-area-inset-left) + 14px))); }
 .builder-floating-actions button { display: inline-flex; min-height: 46px; align-items: center; justify-content: flex-start; gap: 8px; padding: 10px 16px; border: 1px solid #0d5c96; border-radius: 999px; background: var(--blue); color: #fff; box-shadow: 0 8px 28px rgb(16 42 67 / 24%); font-weight: 800; }

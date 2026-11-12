@@ -112,7 +112,6 @@ function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onVal
   return <div className="inline-field-editor" onClick={(event) => event.stopPropagation()}>
     <div className="field-settings-grid">
       <label>Field label<input value={field.label} onChange={(event) => onPatch({ label: event.target.value, id: (slug(event.target.value).replaceAll("-", "_") || `field_${index + 1}`).slice(0, 50) })}/></label>
-      <label>Field ID<input readOnly className="readonly" value={field.id}/></label>
       <label>Field type<select value={field.type} onChange={(event) => { const type = event.target.value as FieldType; onPatch({ type, defaultValue: null, ...(type === 'csv' ? { stepId: null } : {}) }); }}>{fieldTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
       <label>Completed by<select disabled={field.type === 'csv'} value={field.stepId || ""} onChange={(event) => onPatch({ stepId: event.target.value || null, condition: { logic: "and", groups: [] } })}><option value="">Requester submission</option>{workflowSteps.map((step) => <option value={step.id} key={step.id}>{step.name}</option>)}</select></label>
     </div>
@@ -225,6 +224,7 @@ export function FormBuilder() {
   const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
   const [expandedFieldIndex, setExpandedFieldIndex] = useState<number | null>(null);
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null);
+  const [deleteFieldTarget, setDeleteFieldTarget] = useState<{ index: number; label: string } | null>(null);
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
   const [builderTab, setBuilderTab] = useState<"fields" | "steps">("fields");
   const [duplicateTarget, setDuplicateTarget] = useState<{ kind: "field" | "step"; index: number } | null>(null);
@@ -390,6 +390,20 @@ export function FormBuilder() {
     if (invalid) { setError('A field cannot be moved before a field used by its visibility conditions.'); return; }
     setDraft((current) => ({ ...current, fields }));
     setExpandedFieldIndex(toIndex);
+  };
+  const confirmDeleteField = () => {
+    if (!deleteFieldTarget) return;
+    setDraft((current) => {
+      const removedId = current.fields[deleteFieldTarget.index]?.id;
+      if (!removedId) return current;
+      const fields = current.fields
+        .filter((_, index) => index !== deleteFieldTarget.index)
+        .map((field) => ({ ...field, condition: { ...field.condition, groups: (field.condition?.groups || []).map((group) => ({ ...group, rules: group.rules.filter((rule) => rule.fieldId !== removedId) })).filter((group) => group.rules.length) } }));
+      const workflowSteps = current.workflowSteps.map((step) => ({ ...step, condition: { ...step.condition, rules: (step.condition?.rules || []).filter((rule) => rule.fieldId !== removedId) } }));
+      return { ...current, fields, workflowSteps };
+    });
+    setExpandedFieldIndex(null);
+    setDeleteFieldTarget(null);
   };
   const duplicateItems = () => {
     if (!duplicateTarget) return;
@@ -736,7 +750,7 @@ export function FormBuilder() {
                         <IconGripVertical className="field-drag-handle" size={19} aria-label="Drag to reorder field"/>
                         <span className="builder-item-number">{index + 1}</span>
                         <span className="builder-item-title"><strong>{field.label || `Field ${index + 1}`}</strong><small><span className="builder-badge">{field.type}</span><span>{stepName}</span>{field.required && <span className="builder-badge required">Required</span>}{Boolean(field.condition?.groups?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
-                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDuplicateTarget({ kind: "field", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="danger compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (!window.confirm(`Delete “${field.label}”?`)) return; setDraft((current) => ({ ...current, fields: current.fields.filter((_, currentIndex) => currentIndex !== index) })); setExpandedFieldIndex(null); }}><IconTrash size={15}/>Delete</button></span>
+                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDuplicateTarget({ kind: "field", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="danger compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDeleteFieldTarget({ index, label: field.label || `Field ${index + 1}` }); }}><IconTrash size={15}/>Delete</button></span>
                       </summary>
                       <InlineFieldEditor field={field} index={index} fields={draft.fields} workflowSteps={draft.workflowSteps} onPatch={(patch) => patchField(index, patch)} onValidationPatch={(patch) => patchFieldValidation(index, patch)}/>
                     </details>;
@@ -799,10 +813,6 @@ export function FormBuilder() {
                               })
                             }
                           />
-                        </label>
-                        <label>
-                          Field ID
-                          <input readOnly className="readonly" value={field.id} />
                         </label>
                         <label>
                           Field type
@@ -1052,6 +1062,15 @@ export function FormBuilder() {
                 </>}
                 {!topBuilderActionVisible && <div className="builder-floating-actions" aria-label="Builder actions">
                   {builderTab === "fields" ? <button type="button" onClick={addField}><IconPlus size={18}/><span>Add field</span></button> : <button type="button" onClick={addStep}><IconPlus size={18}/><span>Add step</span></button>}
+                </div>}
+                {deleteFieldTarget && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => setDeleteFieldTarget(null)}>
+                  <section className="modal builder-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-field-title" aria-describedby="delete-field-description" onMouseDown={(event) => event.stopPropagation()}>
+                    <div className="confirm-modal-icon"><IconTrash size={22}/></div>
+                    <p className="eyebrow">Delete form field</p>
+                    <h2 id="delete-field-title">Delete “{deleteFieldTarget.label}”?</h2>
+                    <p id="delete-field-description">This removes the field and any visibility or workflow conditions that depend on it. This change is applied when you save the form.</p>
+                    <div className="modal-actions"><button type="button" className="secondary" onClick={() => setDeleteFieldTarget(null)}>Keep field</button><button type="button" className="danger confirm-delete" onClick={confirmDeleteField}><IconTrash size={16}/>Delete field</button></div>
+                  </section>
                 </div>}
                 {duplicateTarget && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => setDuplicateTarget(null)}>
                   <section className="modal duplicate-builder-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-builder-title" onMouseDown={(event) => event.stopPropagation()}>

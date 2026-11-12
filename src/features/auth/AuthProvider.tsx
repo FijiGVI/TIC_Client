@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { actApi, api, hasStoredSession, logoutSession, restoreTokens, SESSION_EXPIRED_EVENT, setTokens } from '@/lib/api';
 import type { Role, TicPermission, User } from '@/lib/types';
 
-type ActUser = { id: number; email: string; firstName?: string | null; lastName?: string | null; role: string; userRole?: { name?: string | null } | null; shouldChangePassword?: boolean };
+type ActUser = { id: number; email: string; firstName?: string | null; lastName?: string | null; role: string; userRole?: { name?: string | null } | null; shouldChangePassword?: boolean; authMethod?: 'password' | 'microsoft' };
 type AuthSession = { accessToken: string; refreshToken?: string; user: ActUser };
 type MicrosoftRequesterSession = { accessToken: string; identity: { email: string; name: string; linkedUserId: number | null } };
-type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[]; roles?: Role[]; organizationType?: string | null; organizationName?: string | null };
-type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<void>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string): Promise<void>; logout(): Promise<void>; refreshUser(): Promise<void>; switchRole(role: Role): Promise<void> };
+type TicContext = { actor: { id: string; email: string; name: string; role: Role }; permissions: TicPermission[]; roles?: Role[]; organizationType?: string | null; organizationName?: string | null; authMethod?: 'password' | 'microsoft' };
+type AuthContextValue = { user: User | null; loading: boolean; login(identifier: string, password: string): Promise<void>; register(input: { name: string; email: string; password: string }): Promise<void>; loginWithMicrosoft(idToken: string, accessToken: string): Promise<void>; logout(): Promise<void>; refreshUser(): Promise<void>; switchRole(role: Role): Promise<void> };
 
 const defaultPermissions: Record<string, TicPermission[]> = {
   admin: ['users.manage', 'roles.manage', 'forms.manage', 'requests.create', 'requests.read.all', 'requests.update', 'requests.approve'],
@@ -39,6 +39,7 @@ function normalizeUser(user: ActUser, context?: TicContext): User {
     organizationName: context?.organizationName,
     permissions: context?.permissions || defaultPermissions[role] || [],
     mustChangePassword: Boolean(user.shouldChangePassword),
+    authMethod: context?.authMethod || user.authMethod || 'password',
   };
 }
 
@@ -53,6 +54,7 @@ function normalizeTicActor(context: TicContext): User {
     organizationName: context.organizationName,
     permissions: context.permissions,
     mustChangePassword: false,
+    authMethod: context.authMethod || 'password',
   };
 }
 
@@ -112,8 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register: async () => {
       throw new Error('Accounts are managed in ACT. Login with your existing ACT account.');
     },
-    loginWithMicrosoft: async (idToken) => {
-      const session = await actApi.post<AuthSession | MicrosoftRequesterSession>('/auth/microsoft', { idToken });
+    loginWithMicrosoft: async (idToken, accessToken) => {
+      const session = await actApi.post<AuthSession | MicrosoftRequesterSession>('/auth/microsoft', { idToken, accessToken });
       setTokens(session);
       const context = await api.get<{ data: TicContext }>('/me');
       setUser(isActAuthSession(session) ? normalizeUser(session.user, context.data) : normalizeTicActor(context.data));

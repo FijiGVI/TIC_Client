@@ -92,7 +92,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
     { href: '/admin/settings', label: 'Settings', icon: IconSettings, show: user.permissions.includes('roles.manage') },
     { href: '/admin/sharepoint', label: 'SharePoint data', icon: IconDatabaseImport, show: user.permissions.includes('forms.manage') },
   ].filter((link) => link.show);
-  const providerManagesPassword = user.id.startsWith('microsoft:');
+  const providerManagesPassword = user.authMethod === 'microsoft';
 
   return <div className={`portal ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <aside className={`sidebar ${navigationOpen ? 'mobile-open' : ''}`} id="primary-sidebar">

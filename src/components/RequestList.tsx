@@ -61,7 +61,8 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
     selectedStep &&
     user &&
     (selectedStep.approverActorId === user.id ||
-      (selectedStep.allowedRoles || [selectedStep.approverRole]).includes(user.role)),
+      (selectedStep.allowedRoles || [selectedStep.approverRole]).includes(user.role)) &&
+    !selected?.currentStepApproval?.approvals.some((approval) => approval.actorId === user.id),
   );
   const currentStepFor = (request: ServiceRequest) =>
     request.currentStep === null || request.currentStep === undefined
@@ -74,7 +75,8 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
       user &&
       request.status === "in_review" &&
       (step.approverActorId === user.id ||
-        (step.allowedRoles || [step.approverRole]).includes(user.role)),
+        (step.allowedRoles || [step.approverRole]).includes(user.role)) &&
+      !request.currentStepApproval?.approvals.some((approval) => approval.actorId === user.id),
     );
   };
   const requiredStepFieldsComplete = selectedStepFields.every((field) => {
@@ -266,6 +268,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                   {currentStepFor(request) ? (
                     <>
                       <strong>{currentStepFor(request)?.name}</strong>
+                      <small>Step {(request.currentStep ?? 0) + 1} of {request.formSnapshot.workflowSteps.length}</small>
                       {isPendingForCurrentUser(request) && <em>Pending your action</em>}
                     </>
                   ) : (
@@ -329,6 +332,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 <div>
                   <small>Current workflow step</small>
                   <strong>{selectedStep.name}</strong>
+                  <span>Step {(selected.currentStep ?? 0) + 1} of {selected.formSnapshot.workflowSteps.length}</span>
                   <span>
                     Assigned to {(selectedStep.allowedRoles || [selectedStep.approverRole])
                       .map((role) => roleLabels[role] || role.replaceAll("_", " "))
@@ -336,6 +340,15 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                   </span>
                 </div>
                 <em>{canCompleteSelectedStep ? "Pending your action" : "Waiting for assigned role"}</em>
+              </div>
+            )}
+            {selected.currentStepApproval?.mode === "parallel" && (
+              <div className="workflow-approvals" aria-label="Parallel approval progress">
+                <strong>{selected.currentStepApproval.rule === "all" ? "All roles must approve" : "Any role may approve"}</strong>
+                {selected.currentStepApproval.requiredRoles.map((role) => {
+                  const approval = selected.currentStepApproval?.approvals.find((item) => item.role === role);
+                  return <span key={role}>{roleLabels[role] || role.replaceAll("_", " ")}: {approval ? `Approved by ${approval.actorName}` : "Pending"}</span>;
+                })}
               </div>
             )}
             <h3>Request details</h3>

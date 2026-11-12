@@ -48,7 +48,7 @@ async function getMicrosoftClient(): Promise<PublicClientApplication> {
 
 function getLoginRequest(): RedirectRequest {
   return {
-    scopes: ['openid', 'profile', 'email'],
+    scopes: ['openid', 'profile', 'email', 'User.Read'],
     redirectUri: getRedirectUri(),
     prompt: 'select_account',
   };
@@ -99,7 +99,7 @@ export function completeMicrosoftSignIn(): Promise<AuthenticationResult> {
       client.setActiveAccount(account);
       const cachedResult = await client.acquireTokenSilent({
         account,
-        scopes: ['openid', 'profile', 'email'],
+        scopes: ['openid', 'profile', 'email', 'User.Read'],
       });
       if (cachedResult.idToken) return cachedResult;
     }

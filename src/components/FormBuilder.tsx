@@ -373,6 +373,8 @@ export function FormBuilder() {
           approverRole: "approver",
           approverUserId: null,
           allowedRoles: ["approver"],
+          approvalMode: "sequential",
+          approvalRule: "all",
           condition: { logic: "and", rules: [] },
         },
       ],
@@ -983,7 +985,7 @@ export function FormBuilder() {
                 <div className="section-title">
                   <div>
                     <h3>Approval workflow</h3>
-                    <p>Each step is completed sequentially.</p>
+                    <p>Steps run in order. Each step may require one or multiple approver roles.</p>
                   </div>
                   <button ref={addStepButtonRef} type="button" className="primary compact" onClick={addStep}><IconPlus size={15}/>Add step</button>
                 </div>
@@ -993,7 +995,7 @@ export function FormBuilder() {
                     return <details key={step.id}>
                       <summary>
                         <span className="builder-item-number">{index + 1}</span>
-                        <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small><span className="builder-badge">Step {index + 1}</span><span>{stepRoles.map(previewRoleLabel).join(", ")}</span>{Boolean(step.condition?.rules?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
+                        <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small><span className="builder-badge">Step {index + 1}</span><span>{stepRoles.map(previewRoleLabel).join(", ")}</span><span className="builder-badge">{step.approvalMode === "parallel" ? `Parallel · ${step.approvalRule === "any" ? "any" : "all"}` : "Sequential"}</span>{Boolean(step.condition?.rules?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
                         <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingStepIndex(index); }}>Edit</button></span>
                       </summary>
                       <div className="builder-item-details"><p>{step.instructions || "No instructions provided."}</p><p><strong>Completed by:</strong> {stepRoles.map(previewRoleLabel).join(", ")}</p></div>
@@ -1025,6 +1027,8 @@ export function FormBuilder() {
                           }
                         />
                         <div className="step-role-list"><small>Roles allowed to complete this step</small>{roles.map((role)=>{const checked=(step.allowedRoles||[step.approverRole]).includes(role.value);return <label className="check" key={role.value}><input type="checkbox" checked={checked} onChange={(event)=>{const current=step.allowedRoles||[step.approverRole];const allowedRoles=event.target.checked?[...new Set([...current,role.value])]:current.filter((value)=>value!==role.value);if(allowedRoles.length)patchStep(index,{allowedRoles,approverRole:allowedRoles[0]});}}/>{role.label}</label>;})}</div>
+                        <label>Approval mode<select value={step.approvalMode || "sequential"} onChange={(event)=>patchStep(index,{approvalMode:event.target.value as "sequential"|"parallel"})}><option value="sequential">One eligible approver</option><option value="parallel">Multiple approver roles</option></select></label>
+                        {(step.approvalMode || "sequential") === "parallel" && <label>Completion rule<select value={step.approvalRule || "all"} onChange={(event)=>patchStep(index,{approvalRule:event.target.value as "any"|"all"})}><option value="all">All selected roles must approve</option><option value="any">Any selected role may approve</option></select></label>}
                         <button
                           type="button"
                           aria-label="Remove workflow step"

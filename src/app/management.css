@@ -477,6 +477,17 @@
 .workflow-state small,
 .workflow-state span { color: var(--muted); font-size: 11px; }
 .workflow-state strong { font-size: 15px; }
+.workflow-approvals {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-subtle, #f7f9fc);
+}
+.workflow-approvals strong { font-size: 13px; }
+.workflow-approvals span { color: var(--muted); font-size: 12px; }
 
 @media (max-width: 1180px) {
   .workflow-config-row { grid-template-columns: 36px minmax(0, 1fr) 40px; }

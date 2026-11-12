@@ -19,6 +19,7 @@ export type User = {
   organizationName?: string | null;
   permissions: TicPermission[];
   mustChangePassword: boolean;
+  authMethod?: "password" | "microsoft";
 };
 export type FieldType =
   | "text"
@@ -68,6 +69,8 @@ export type WorkflowStep = {
   approverActorId?: string | null;
   approverUserId?: string | null;
   allowedRoles: Role[];
+  approvalMode: "sequential" | "parallel";
+  approvalRule: "any" | "all";
   condition: { logic: "and" | "or"; rules: Array<{ fieldId:string; operator:"equals"|"not_equals"|"contains"|"is_empty"|"is_not_empty"; value:string }> };
 };
 export type RequestForm = {
@@ -143,6 +146,13 @@ export type ServiceRequest = {
   assignedActorId: string | null;
   assignedRole: Role | null;
   assignedRoles?: Role[];
+  currentStepApproval?: {
+    stepId: string;
+    mode: "sequential" | "parallel";
+    rule: "any" | "all";
+    requiredRoles: Role[];
+    approvals: Array<{ actorId: string; actorName: string; role: Role; approvedAt: string }>;
+  } | null;
   remarks: string | null;
   completedAt: string | null;
   createdAt: string;

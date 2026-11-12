@@ -1026,14 +1026,14 @@ export function FormBuilder() {
                   </div>
                   <button ref={addStepButtonRef} type="button" className="primary compact" onClick={addStep}><IconPlus size={15}/>Add step</button>
                 </div>
-                <div className="builder-accordion">
+                <div className="builder-accordion workflow-accordion">
                   {draft.workflowSteps.map((step, index) => {
                     const stepRoles = step.allowedRoles?.length ? step.allowedRoles : [step.approverRole];
                     return <details key={step.id}>
                       <summary>
                         <span className="builder-item-number">{index + 1}</span>
                         <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small><span className="builder-badge">Step {index + 1}</span><span>{stepRoles.map(previewRoleLabel).join(", ")}</span><span className="builder-badge">{step.approvalMode === "parallel" ? `Parallel · ${step.approvalRule === "any" ? "any" : "all"}` : "Sequential"}</span>{Boolean(step.condition?.groups?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
-                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); setEditingStepIndex(index); }}>Edit</button></span>
+                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditingStepIndex(index); }}>Edit</button></span>
                       </summary>
                       <div className="builder-item-details"><p>{step.instructions || "No instructions provided."}</p><p><strong>Completed by:</strong> {stepRoles.map(previewRoleLabel).join(", ")}</p></div>
                     </details>;

@@ -76,15 +76,28 @@
 .builder-accordion details:has(summary:active) { opacity: .72; }
 .field-type-note { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #f8fafc; }
 .field-type-note small { color: var(--muted); }
-.field-condition-editor { display: grid; gap: 16px; margin-top: 22px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
+.field-condition-editor { container-type: inline-size; display: grid; min-width: 0; gap: 16px; margin-top: 22px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
 .field-condition-editor > legend { padding: 0 7px; font-weight: 800; }
 .field-condition-editor > legend span, .field-condition-editor > p { color: var(--muted); font-weight: 400; }
 .field-condition-editor > p { margin: -6px 0 0; }
-.condition-group { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.condition-group { display: grid; min-width: 0; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: white; }
 .condition-group > header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
 .nested-condition-rule { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(150px, .8fr) minmax(180px, 1fr) auto; align-items: end; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: #f8fafc; }
+.nested-condition-rule > label { min-width: 0; }
+.nested-condition-rule input,.nested-condition-rule select { width: 100%; min-width: 0; }
 .nested-condition-rule > button { margin-bottom: 2px; }
+.condition-group > button { justify-self: start; width: auto; }
 .field-condition-editor > button { justify-self: start; width: auto; }
+@container (max-width: 700px) {
+  .nested-condition-rule { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nested-condition-rule > label:nth-child(3) { grid-column: 1 / -1; }
+  .nested-condition-rule > button { justify-self: start; }
+}
+@container (max-width: 480px) {
+  .condition-group > header,.nested-condition-rule { grid-template-columns: minmax(0, 1fr); }
+  .nested-condition-rule > label:nth-child(3) { grid-column: auto; }
+  .condition-group > header button,.nested-condition-rule > button { width: 100%; }
+}
 @media (max-width: 700px) {
   .form-group-create { grid-template-columns: 1fr; padding-inline: 18px; }
   .form-group-create > div, .form-group-create button { width: 100%; }
@@ -187,6 +200,12 @@
 .builder-item-title small { color: var(--muted); font-weight: 500; text-transform: capitalize; }
 .builder-item-actions { display: flex; align-items: center; gap: 5px; }
 .builder-item-actions .compact { min-height: 32px; padding: 5px 9px; font-size: 11px; }
+.workflow-accordion summary { grid-template-columns: 20px 30px minmax(0, 1fr); align-items: start; padding-block: 12px; }
+.workflow-accordion .builder-item-number { margin-top: 2px; }
+.workflow-accordion .builder-item-title strong { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+.workflow-accordion .builder-item-title small { overflow: visible; white-space: normal; }
+.workflow-accordion .builder-item-actions { grid-column: 3; margin-top: 7px; }
+.workflow-accordion .builder-item-actions button { flex: none; }
 .editor .section-title { margin-block: 18px 10px; padding-top: 16px; }
 .editor .section-title .compact { min-height: 36px; padding: 6px 11px; font-size: 12px; }
 .builder-item-details { padding: 14px 64px 16px; border-top: 1px solid var(--line); background: #fbfcfd; color: var(--muted); }

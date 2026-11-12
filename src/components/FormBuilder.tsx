@@ -726,7 +726,7 @@ export function FormBuilder() {
                     <h3>Form fields</h3>
                     <p>Fields appear in this order to requesters.</p>
                   </div>
-                  <button ref={addFieldButtonRef} type="button" className="primary" onClick={addField}><IconPlus size={17}/>Add field</button>
+                  <button ref={addFieldButtonRef} type="button" className="primary compact" onClick={addField}><IconPlus size={15}/>Add field</button>
                 </div>
                 <div className="builder-accordion">
                   {draft.fields.map((field, index) => {
@@ -975,7 +975,7 @@ export function FormBuilder() {
                     <h3>Approval workflow</h3>
                     <p>Each step is completed sequentially.</p>
                   </div>
-                  <button ref={addStepButtonRef} type="button" className="primary" onClick={addStep}><IconPlus size={17}/>Add step</button>
+                  <button ref={addStepButtonRef} type="button" className="primary compact" onClick={addStep}><IconPlus size={15}/>Add step</button>
                 </div>
                 <div className="builder-accordion">
                   {draft.workflowSteps.map((step, index) => {

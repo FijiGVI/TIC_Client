@@ -85,10 +85,10 @@ export async function logoutSession(): Promise<void> {
   }
 }
 
-function getErrorMessage(status: number, body: ApiErrorBody, authenticationAttempt: boolean): string {
+function getErrorMessage(status: number, body: ApiErrorBody, passwordAuthenticationAttempt: boolean): string {
   const supplied = body.error || body.message || body.errors?.[0]?.msg;
   const normalized = supplied?.trim().toLowerCase() || '';
-  if (authenticationAttempt && status === 401) return 'The email or password is incorrect. Check your details and try again.';
+  if (passwordAuthenticationAttempt && status === 401) return 'The email or password is incorrect. Check your details and try again.';
   if (normalized === 'invalid credentials') return 'The email or password is incorrect. Check your details and try again.';
   if (normalized.includes('email service is unavailable')) return 'The email notification service is temporarily unavailable. The main action may still have been completed.';
   if (status >= 500 || /sequelize|sql|relation|column|stack|undefined|internal server error/.test(normalized)) {
@@ -123,6 +123,7 @@ async function refreshAccessToken(): Promise<void> {
 async function request<T>(scope: ApiScope, path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const hadSession = Boolean(accessToken || refreshToken);
   const authenticationAttempt = path === '/auth/login' || path === '/auth/microsoft';
+  const passwordAuthenticationAttempt = path === '/auth/login';
   let response: Response;
   try {
     response = await fetch(apiUrl(scope, path), {
@@ -155,7 +156,7 @@ async function request<T>(scope: ApiScope, path: string, init: RequestInit = {},
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({})) as ApiErrorBody;
-    throw new Error(getErrorMessage(response.status, body, authenticationAttempt));
+    throw new Error(getErrorMessage(response.status, body, passwordAuthenticationAttempt));
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

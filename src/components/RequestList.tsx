@@ -7,11 +7,12 @@ import {
   IconRefresh,
   IconSearch,
 } from "@tabler/icons-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { NewRequestModal } from "@/components/NewRequestModal";
 import { Pagination } from "@/components/Pagination";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { api } from "@/lib/api";
+import { fieldIsVisible, initialFieldResponses } from "@/lib/fieldConditions";
 import type { DepartmentOption, PaginationMeta, ServiceRequest } from "@/lib/types";
 import "./RequestList.css";
 
@@ -45,9 +46,16 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
   const [createOpen, setCreateOpen] = useState(false);
   const [stepResponses, setStepResponses] = useState<Record<string, unknown>>({});
   const selectedStep = selected?.currentStep === null || selected?.currentStep === undefined ? null : selected.formSnapshot.workflowSteps[selected.currentStep];
-  const selectedStepFields = selectedStep && selected
+  const allSelectedStepFields = selectedStep && selected
     ? selected.formSnapshot.fields.filter((field) => field.stepId === selectedStep.id)
     : [];
+  const selectedStepFields = useMemo(
+    () => allSelectedStepFields.filter((field) => fieldIsVisible(field, stepResponses)),
+    [allSelectedStepFields, stepResponses],
+  );
+  useEffect(() => {
+    setStepResponses(initialFieldResponses(allSelectedStepFields));
+  }, [selected?.id, selected?.currentStep]);
   const canCompleteSelectedStep = Boolean(
     selectedStep &&
     user &&
@@ -384,7 +392,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                       {field.label}{field.required && <span aria-hidden="true"> *</span>}
                       {field.description && <small className="field-description" id={`step-${field.id}-description`}>{field.description}</small>}
                       {field.type === "textarea" ? (
-                        <textarea aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
+                        <textarea aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} placeholder={field.placeholder} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
                       ) : field.type === "select" ? (
                         <select aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })}>
                           <option value="">Select one</option>
@@ -393,7 +401,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                       ) : field.type === "checkbox" ? (
                         <input type="checkbox" checked={Boolean(stepResponses[field.id])} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.checked })} />
                       ) : (
-                        <input aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} type={field.type} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
+                        <input aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} placeholder={field.placeholder} type={field.type} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
                       )}
                     </label>
                   ))}

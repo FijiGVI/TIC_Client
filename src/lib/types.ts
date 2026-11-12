@@ -32,14 +32,23 @@ export type FieldType =
   | "checkbox"
   | "image"
   | "pdf";
+export type ConditionOperator = "equals" | "not_equals" | "contains" | "is_empty" | "is_not_empty";
+export type ConditionRule = { fieldId: string; operator: ConditionOperator; value: string };
+export type FieldCondition = {
+  logic: "and" | "or";
+  groups: Array<{ logic: "and" | "or"; rules: ConditionRule[] }>;
+};
 export type FormField = {
   id: string;
   label: string;
   description: string;
   type: FieldType;
   required: boolean;
+  defaultValue: string | number | boolean | null;
+  placeholder: string;
   options: string[];
   stepId?: string | null;
+  condition: FieldCondition;
   validation: {
     minLength?: number;
     maxLength?: number;
@@ -64,6 +73,7 @@ export type RequestForm = {
   id: string;
   key: string;
   name: string;
+  groupId: string;
   groupName: string;
   description: string;
   fields: FormField[];
@@ -76,6 +86,13 @@ export type RequestForm = {
   updatedAt?: string;
   creator?: { name: string } | null;
   updater?: { name: string } | null;
+};
+export type FormGroup = {
+  id: string;
+  name: string;
+  formCount: number;
+  createdAt: string;
+  updatedAt: string;
 };
 export type RolePermissionSet = {
   role: Role;

@@ -3,6 +3,7 @@
 import {
   IconDeviceFloppy,
   IconEye,
+  IconPencil,
   IconPlus,
   IconTrash,
   IconX,
@@ -17,8 +18,9 @@ import {
   type KeyboardEvent,
 } from "react";
 import { api } from "@/lib/api";
+import { fieldIsVisible, initialFieldResponses } from "@/lib/fieldConditions";
 import { Pagination } from "@/components/Pagination";
-import type { FieldType, FormField, PaginationMeta, RequestForm, Role, RoleOption } from "@/lib/types";
+import type { ConditionOperator, FieldCondition, FieldType, FormField, FormGroup, PaginationMeta, RequestForm, Role, RoleOption } from "@/lib/types";
 
 type Draft = Omit<RequestForm, "id"> | RequestForm;
 // File fields remain readable for backwards compatibility, but cannot be
@@ -46,7 +48,8 @@ const slug = (value: string) =>
 const blank = (): Draft => ({
   key: "",
   name: "",
-  groupName: "General",
+  groupId: "",
+  groupName: "",
   description: "",
   active: true,
   fields: [],
@@ -59,6 +62,42 @@ const nextBuilderId = (prefix: string, existingIds: string[]): string => {
   while (existingIds.includes(`${prefix}_${sequence}`)) sequence += 1;
   return `${prefix}_${sequence}`;
 };
+
+const conditionOperators: Array<{ value: ConditionOperator; label: string }> = [
+  { value: "equals", label: "Equals" },
+  { value: "not_equals", label: "Does not equal" },
+  { value: "contains", label: "Contains" },
+  { value: "is_empty", label: "Is empty" },
+  { value: "is_not_empty", label: "Is not empty" },
+];
+
+function FieldConditionEditor({ field, fieldIndex, fields, onChange }: { field: FormField; fieldIndex: number; fields: FormField[]; onChange(condition: FieldCondition): void }) {
+  const condition = field.condition || { logic: "and", groups: [] };
+  const availableFields = fields.slice(0, fieldIndex).filter((candidate) => (candidate.stepId || null) === (field.stepId || null));
+  const patchGroup = (groupIndex: number, patch: Partial<FieldCondition["groups"][number]>) =>
+    onChange({ ...condition, groups: condition.groups.map((group, index) => index === groupIndex ? { ...group, ...patch } : group) });
+  const addGroup = () => onChange({ ...condition, groups: [...condition.groups, { logic: "and", rules: [{ fieldId: availableFields[0]?.id || "", operator: "equals", value: "" }] }] });
+
+  return <fieldset className="field-condition-editor">
+    <legend>Field condition <span>(optional)</span></legend>
+    <p>Show this field only when the nested conditions below match.</p>
+    {!!condition.groups.length && <label>Top-level logic<select value={condition.logic} onChange={(event) => onChange({ ...condition, logic: event.target.value as "and" | "or" })}><option value="and">All groups match (AND)</option><option value="or">Any group matches (OR)</option></select></label>}
+    {condition.groups.map((group, groupIndex) => <section className="condition-group" key={groupIndex}>
+      <header><label>Group {groupIndex + 1} logic<select value={group.logic} onChange={(event) => patchGroup(groupIndex, { logic: event.target.value as "and" | "or" })}><option value="and">All conditions match (AND)</option><option value="or">Any condition matches (OR)</option></select></label><button type="button" className="danger compact" onClick={() => onChange({ ...condition, groups: condition.groups.filter((_, index) => index !== groupIndex) })}>Remove group</button></header>
+      {group.rules.map((rule, ruleIndex) => <div className="nested-condition-rule" key={ruleIndex}>
+        <label>Field<select value={rule.fieldId} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, fieldId: event.target.value } : item) })}><option value="">Select an earlier field</option>{availableFields.map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.label}</option>)}</select></label>
+        <label>Operator<select value={rule.operator} onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, operator: event.target.value as ConditionOperator } : item) })}>{conditionOperators.map((operator) => <option value={operator.value} key={operator.value}>{operator.label}</option>)}</select></label>
+        {!rule.operator.includes("empty") && <label>Expected value<input value={rule.value} placeholder="Enter the value to compare" onChange={(event) => patchGroup(groupIndex, { rules: group.rules.map((item, index) => index === ruleIndex ? { ...item, value: event.target.value } : item) })}/></label>}
+        <button type="button" className="danger compact" onClick={() => {
+          if (group.rules.length === 1) onChange({ ...condition, groups: condition.groups.filter((_, index) => index !== groupIndex) });
+          else patchGroup(groupIndex, { rules: group.rules.filter((_, index) => index !== ruleIndex) });
+        }}>Remove condition</button>
+      </div>)}
+      <button type="button" className="secondary compact" disabled={group.rules.length >= 20} onClick={() => patchGroup(groupIndex, { rules: [...group.rules, { fieldId: availableFields[0]?.id || "", operator: "equals", value: "" }] })}><IconPlus size={15}/>Add condition</button>
+    </section>)}
+    <button type="button" className="secondary" disabled={!availableFields.length || condition.groups.length >= 20} title={availableFields.length ? "Add a nested condition group" : "Add an earlier field in the same stage first"} onClick={addGroup}><IconPlus size={16}/>Add condition group</button>
+  </fieldset>;
+}
 
 const previewStepApplies = (step: Draft["workflowSteps"][number], responses: Record<string, unknown>): boolean => {
   const rules = step.condition?.rules || [];
@@ -83,7 +122,7 @@ function PreviewField({ field, value, onChange }: { field: FormField; value: unk
       <label className="field-wide">
         <span>{label}</span>
         {description}
-        <textarea value={String(value || "")} placeholder={field.description} onChange={(event) => onChange(event.target.value)} />
+        <textarea value={String(value || "")} placeholder={field.placeholder || field.description} onChange={(event) => onChange(event.target.value)} />
       </label>
     );
   if (field.type === "select")
@@ -126,7 +165,7 @@ function PreviewField({ field, value, onChange }: { field: FormField; value: unk
           field.type === "image" || field.type === "pdf" ? "file" : field.type
         }
         value={field.type === "image" || field.type === "pdf" ? undefined : String(value || "")}
-        placeholder={field.description}
+        placeholder={field.placeholder || field.description}
         onChange={(event) => onChange(event.target.value)}
       />
     </label>
@@ -135,6 +174,7 @@ function PreviewField({ field, value, onChange }: { field: FormField; value: unk
 
 export function FormBuilder() {
   const [forms, setForms] = useState<RequestForm[]>([]);
+  const [groups, setGroups] = useState<FormGroup[]>([]);
   const [roles, setRoles] = useState<Array<{ value: Role; label: string }>>([]);
   const [draft, setDraft] = useState<Draft>(blank());
   const [error, setError] = useState("");
@@ -148,18 +188,24 @@ export function FormBuilder() {
   const [duplicateTarget, setDuplicateTarget] = useState<{ kind: "field" | "step"; index: number } | null>(null);
   const [duplicateCount, setDuplicateCount] = useState(1);
   const [draftStatus, setDraftStatus] = useState("");
+  const [groupsOpen, setGroupsOpen] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [groupSaving, setGroupSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>(initialMeta);
   const draftReady = useRef(false);
   const load = useCallback(async () => {
     try {
-      const [formResult, roleResult] = await Promise.all([
+      const [formResult, roleResult, groupResult] = await Promise.all([
         api.get<{ data: RequestForm[]; meta: PaginationMeta }>(`/forms?page=${page}&pageSize=100`),
         api.get<{ data: RoleOption[] }>("/roles"),
+        api.get<{ data: FormGroup[] }>("/form-groups"),
       ]);
       setForms(formResult.data);
       setMeta(formResult.meta);
       setRoles(roleResult.data.map((role) => ({ value: role.role, label: role.label })));
+      setGroups(groupResult.data);
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to load forms",
@@ -208,7 +254,9 @@ export function FormBuilder() {
     [draft.workflowSteps, previewResponses],
   );
   const currentPreviewStep = previewStage === 0 ? null : previewSteps[previewStage - 1] || null;
-  const previewFields = draft.fields.filter((field) => currentPreviewStep ? field.stepId === currentPreviewStep.id : !field.stepId);
+  const previewFields = draft.fields.filter((field) =>
+    (currentPreviewStep ? field.stepId === currentPreviewStep.id : !field.stepId) && fieldIsVisible(field, previewResponses),
+  );
   const previewRoleLabel = (role: Role) => roles.find((candidate) => candidate.value === role)?.label || role.replaceAll("_", " ");
   useEffect(() => {
     if (previewStage <= previewSteps.length) return;
@@ -247,8 +295,11 @@ export function FormBuilder() {
           description: "",
           type: "text",
           required: false,
+          defaultValue: null,
+          placeholder: "",
           options: [],
           stepId: null,
+          condition: { logic: "and", groups: [] },
           validation: {},
         },
       ],
@@ -299,6 +350,7 @@ export function FormBuilder() {
           label: `${source.label} (Copy ${copyIndex + 1})`,
           options: [...source.options],
           validation: { ...source.validation },
+          condition: { ...source.condition, groups: (source.condition?.groups || []).map((group) => ({ ...group, rules: group.rules.map((rule) => ({ ...rule })) })) },
         }));
         const fields = [...current.fields];
         fields.splice(duplicateTarget.index + 1, 0, ...copies);
@@ -317,6 +369,7 @@ export function FormBuilder() {
           stepId,
           options: [...field.options],
           validation: { ...field.validation },
+          condition: { ...field.condition, groups: (field.condition?.groups || []).map((group) => ({ ...group, rules: group.rules.map((rule) => ({ ...rule })) })) },
         }));
         return {
           ...sourceStep,
@@ -351,6 +404,45 @@ export function FormBuilder() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+  const resetGroupEditor = () => {
+    setEditingGroupId(null);
+    setGroupName("");
+  };
+  const saveGroup = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = groupName.trim();
+    if (!name) return;
+    setGroupSaving(true);
+    setError("");
+    try {
+      const result = editingGroupId
+        ? await api.patch<{ data: FormGroup }>(`/form-groups/${editingGroupId}`, { name })
+        : await api.post<{ data: FormGroup }>("/form-groups", { name });
+      if (!draft.groupId || draft.groupId === result.data.id) {
+        setDraft((current) => ({ ...current, groupId: result.data.id, groupName: result.data.name }));
+      }
+      resetGroupEditor();
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to save form group");
+    } finally {
+      setGroupSaving(false);
+    }
+  };
+  const deleteGroup = async (group: FormGroup) => {
+    if (!window.confirm(`Delete the group “${group.name}”?`)) return;
+    setGroupSaving(true);
+    setError("");
+    try {
+      await api.delete(`/form-groups/${group.id}`);
+      if (draft.groupId === group.id) setDraft({ ...draft, groupId: "", groupName: "" });
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to delete form group");
+    } finally {
+      setGroupSaving(false);
     }
   };
   const keyboardSave = (event: KeyboardEvent<HTMLFormElement>) => {
@@ -437,11 +529,14 @@ export function FormBuilder() {
           <form onSubmit={save} onKeyDown={keyboardSave}>
             <div className="editor-actions">
               <small>{draftStatus}</small>
+              <button type="button" className="secondary" onClick={() => setGroupsOpen(true)}>
+                Manage groups
+              </button>
               <button
                 type="button"
                 className="secondary"
                 onClick={() => setPreview((value) => {
-                  if (!value) { setPreviewResponses({}); setPreviewStage(0); }
+                  if (!value) { setPreviewResponses(initialFieldResponses(draft.fields)); setPreviewStage(0); }
                   return !value;
                 })}
               >
@@ -506,13 +601,17 @@ export function FormBuilder() {
                   </label>
                   <label>
                     Group
-                    <input
+                    <select
                       required
-                      value={draft.groupName}
-                      onChange={(event) =>
-                        setDraft({ ...draft, groupName: event.target.value })
-                      }
-                    />
+                      value={draft.groupId || ""}
+                      onChange={(event) => {
+                        const group = groups.find((item) => item.id === event.target.value);
+                        setDraft({ ...draft, groupId: group?.id || "", groupName: group?.name || "" });
+                      }}
+                    >
+                      <option value="">Select a group</option>
+                      {groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}
+                    </select>
                   </label>
                   <label>
                     Status
@@ -670,7 +769,7 @@ export function FormBuilder() {
                         </label>
                         <label>
                           Completed by
-                          <select value={field.stepId || ""} onChange={(event) => patchField(index,{stepId:event.target.value||null})}>
+                          <select value={field.stepId || ""} onChange={(event) => patchField(index,{ stepId:event.target.value||null, condition: { logic: "and", groups: [] } })}>
                             <option value="">Requester submission</option>
                             {draft.workflowSteps.map((step)=><option value={step.id} key={step.id}>{step.name}</option>)}
                           </select>
@@ -686,6 +785,16 @@ export function FormBuilder() {
                           }
                         />
                       </label>
+                      <div className="field-defaults-grid">
+                        {field.type === "checkbox" ? <label className="check"><input type="checkbox" checked={field.defaultValue === true} onChange={(event) => patchField(index, { defaultValue: event.target.checked })}/>Checked by default</label> : <label>
+                          Default value
+                          {field.type === "select" || field.type === "radio" ? <select value={String(field.defaultValue ?? "")} onChange={(event) => patchField(index, { defaultValue: event.target.value || null })}><option value="">No default value</option>{field.options.map((option) => <option value={option} key={option}>{option}</option>)}</select> : <input type={field.type === "number" || field.type === "date" || field.type === "time" ? field.type : "text"} value={String(field.defaultValue ?? "")} onChange={(event) => patchField(index, { defaultValue: event.target.value === "" ? null : field.type === "number" ? event.target.valueAsNumber : event.target.value })}/>} 
+                        </label>}
+                        {!['checkbox', 'radio', 'select'].includes(field.type) && <label>
+                          Placeholder
+                          <input maxLength={300} value={field.placeholder || ""} placeholder="Text shown before the user enters a value" onChange={(event) => patchField(index, { placeholder: event.target.value })}/>
+                        </label>}
+                      </div>
                       {["select", "radio"].includes(field.type) && (
                         <textarea
                           className="options"
@@ -806,6 +915,7 @@ export function FormBuilder() {
                           </label>
                         </fieldset>
                       )}
+                      <FieldConditionEditor field={field} fieldIndex={index} fields={draft.fields} onChange={(condition) => patchField(index, { condition })}/>
                     </article>
                   ))}
                     </div></div>
@@ -926,6 +1036,28 @@ export function FormBuilder() {
           </form>
         </section>
       </div>
+      {groupsOpen && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => { setGroupsOpen(false); resetGroupEditor(); }}>
+        <section className="modal form-groups-modal" role="dialog" aria-modal="true" aria-labelledby="form-groups-title" onMouseDown={(event) => event.stopPropagation()}>
+          <header className="builder-modal-heading">
+            <div><p className="eyebrow">Form configuration</p><h2 id="form-groups-title">Manage groups</h2><p>Create reusable groups for organizing request forms.</p></div>
+            <button type="button" aria-label="Close group manager" onClick={() => { setGroupsOpen(false); resetGroupEditor(); }}><IconX size={20}/></button>
+          </header>
+          <form className="form-group-create" onSubmit={saveGroup}>
+            <label><span>{editingGroupId ? "Group name" : "New group name"}</span><input maxLength={100} required value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="e.g. Information Technology" /></label>
+            <div>{editingGroupId && <button type="button" className="secondary" onClick={resetGroupEditor}>Cancel</button>}<button type="submit" className="primary" disabled={groupSaving}>{groupSaving ? "Saving…" : editingGroupId ? "Save changes" : "Add group"}</button></div>
+          </form>
+          <div className="form-group-list">
+            {groups.map((group) => <article key={group.id}>
+              <div><strong>{group.name}</strong><small>{group.formCount} {group.formCount === 1 ? "form" : "forms"}</small></div>
+              <div>
+                <button type="button" className="secondary compact" disabled={groupSaving} onClick={() => { setEditingGroupId(group.id); setGroupName(group.name); }}><IconPencil size={16}/>Edit</button>
+                <button type="button" className="danger compact" disabled={groupSaving || group.formCount > 0} title={group.formCount > 0 ? "Move its forms before deleting this group" : "Delete group"} onClick={() => void deleteGroup(group)}><IconTrash size={16}/>Delete</button>
+              </div>
+            </article>)}
+            {!groups.length && <div className="builder-empty-list">No groups yet. Add the first group above.</div>}
+          </div>
+        </section>
+      </div>}
     </>
   );
 }

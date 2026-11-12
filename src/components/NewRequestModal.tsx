@@ -4,6 +4,7 @@ import { IconCheck, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { api } from '@/lib/api';
+import { fieldIsVisible, initialFieldResponses } from '@/lib/fieldConditions';
 import type { DepartmentOption, FormField, RequestForm } from '@/lib/types';
 
 const completeEmail = (value: string): string => {
@@ -44,12 +45,12 @@ function Field({ field, value, error, setValue, onBlur }: FieldProps) {
   const feedback = error ? <small className="field-error" id={errorId} role="alert">{error}</small> : null;
   const description = field.description ? <small className="field-description" id={descriptionId}>{field.description}</small> : null;
   const accessibility = { 'aria-invalid': Boolean(error), 'aria-describedby': [field.description ? descriptionId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined };
-  if (field.type === 'textarea') return <label className="field-wide"><span>{field.label}</span>{description}<textarea {...accessibility} required={field.required} minLength={field.validation.minLength} maxLength={field.validation.maxLength} value={String(value || '')} onBlur={onBlur} onChange={(event) => setValue(event.target.value)} />{feedback}</label>;
+  if (field.type === 'textarea') return <label className="field-wide"><span>{field.label}</span>{description}<textarea {...accessibility} required={field.required} minLength={field.validation.minLength} maxLength={field.validation.maxLength} placeholder={field.placeholder} value={String(value || '')} onBlur={onBlur} onChange={(event) => setValue(event.target.value)} />{feedback}</label>;
   if (field.type === 'select') return <label><span>{field.label}</span>{description}<select {...accessibility} required={field.required} value={String(value || '')} onBlur={onBlur} onChange={(event) => setValue(event.target.value)}><option value="">Select one</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select>{feedback}</label>;
   if (field.type === 'radio') return <fieldset {...accessibility} onBlur={onBlur}><legend>{field.label}</legend>{description}{field.options.map((option) => <label className="radio" key={option}><input required={field.required} type="radio" name={field.id} checked={value === option} onChange={() => setValue(option)} />{option}</label>)}{feedback}</fieldset>;
   if (field.type === 'checkbox') return <label className="radio"><input {...accessibility} required={field.required} type="checkbox" checked={Boolean(value)} onBlur={onBlur} onChange={(event) => setValue(event.target.checked)} />{field.label}{feedback}</label>;
   const isFile = field.type === 'image' || field.type === 'pdf';
-  return <label><span>{field.label}</span>{description}<input {...accessibility} required={field.required} minLength={field.validation.minLength} maxLength={field.validation.maxLength} min={field.validation.min} max={field.validation.max} pattern={field.validation.patternFlags ? undefined : field.validation.pattern} type={isFile ? 'file' : field.type} value={isFile ? undefined : String(value || '')} onChange={(event) => setValue(event.target.value)} onBlur={(event) => { if (field.type === 'email') setValue(completeEmail(event.target.value)); onBlur(); }} />{feedback}</label>;
+  return <label><span>{field.label}</span>{description}<input {...accessibility} required={field.required} minLength={field.validation.minLength} maxLength={field.validation.maxLength} min={field.validation.min} max={field.validation.max} pattern={field.validation.patternFlags ? undefined : field.validation.pattern} placeholder={field.placeholder} type={isFile ? 'file' : field.type} value={isFile ? undefined : String(value || '')} onChange={(event) => setValue(field.type === 'number' && event.target.value !== '' ? event.target.valueAsNumber : event.target.value)} onBlur={(event) => { if (field.type === 'email') setValue(completeEmail(event.target.value)); onBlur(); }} />{feedback}</label>;
 }
 
 export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onSubmitted(): void }) {
@@ -78,12 +79,17 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
 
   const selected = useMemo(() => forms.find((form) => form.id === formId), [forms, formId]);
   const requesterFields = useMemo(() => selected?.fields.filter((field) => !field.stepId) || [], [selected]);
+  const visibleRequesterFields = useMemo(() => requesterFields.filter((field) => fieldIsVisible(field, responses)), [requesterFields, responses]);
   const groups = useMemo(() => [...new Set(forms.map((form) => form.groupName))], [forms]);
+  useEffect(() => {
+    setResponses(initialFieldResponses(requesterFields));
+    setFieldErrors({});
+  }, [formId, requesterFields]);
   const setFieldValue = (field: FormField, value: unknown) => { setResponses((current) => ({ ...current, [field.id]: value })); setFieldErrors((current) => ({ ...current, [field.id]: '' })); };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!selected || !user) return;
-    const errors = Object.fromEntries(requesterFields.map((field) => [field.id, validateField(field, responses[field.id])] as const).filter(([, message]) => Boolean(message)));
+    const errors = Object.fromEntries(visibleRequesterFields.map((field) => [field.id, validateField(field, responses[field.id])] as const).filter(([, message]) => Boolean(message)));
     setFieldErrors(errors);
     if (!departmentId || Object.keys(errors).length) { setError('Please complete the department and correct the highlighted fields.'); return; }
     setSaving(true); setError('');
@@ -109,11 +115,11 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
                 {selected ? (
                   <form id="new-request-form" noValidate onSubmit={submit}>
                     <div className="request-context-grid">
-                      <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { setFormId(event.target.value); setResponses({}); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
+                      <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { const nextId = event.target.value; const nextForm = forms.find((form) => form.id === nextId); setFormId(nextId); setResponses(initialFieldResponses(nextForm?.fields.filter((field) => !field.stepId) || [])); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
                       <label><span>Department</span><small>Select the department you belong to.</small><select required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">Select your department</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
                       <div className="selected-service-summary"><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p></div>
                     </div>
-                    <div className="dynamic-fields">{requesterFields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div>
+                    <div className="dynamic-fields">{visibleRequesterFields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div>
                   </form>
                 ) : <div className="empty"><h3>No request forms available</h3></div>}
               </div>

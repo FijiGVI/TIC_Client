@@ -182,7 +182,7 @@ function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onVal
   const validationIssue = fieldValidationIssue(field);
   return <div className="inline-field-editor" onClick={(event) => event.stopPropagation()}>
     <div className="field-settings-grid">
-      <label>Field label<input value={field.label} onChange={(event) => onPatch({ label: event.target.value, id: (slug(event.target.value).replaceAll("-", "_") || `field_${index + 1}`).slice(0, 50) })}/></label>
+      <label>Field label<input value={field.label} onChange={(event) => onPatch({ label: event.target.value })}/></label>
       <label>Field type<select value={field.type} onChange={(event) => { const type = event.target.value as FieldType; onPatch({ type, defaultValue: null, ...(type === 'csv' ? { stepId: null } : {}), ...(type !== 'reference_image' ? { referenceImageUploadId: null } : {}) }); }}>{fieldTypes.map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}</select></label>
       <label>Completed by<select disabled={field.type === 'csv'} value={field.stepId || ""} onChange={(event) => onPatch({ stepId: event.target.value || null, condition: { logic: "and", groups: [] } })}><option value="">Requester submission</option>{workflowSteps.map((step) => <option value={step.id} key={step.id}>{step.name}</option>)}</select></label>
     </div>
@@ -893,10 +893,6 @@ export function FormBuilder() {
                             onChange={(event) =>
                               patchField(index, {
                                 label: event.target.value,
-                                id: (
-                                  slug(event.target.value).replaceAll("-", "_") ||
-                                  `field_${index + 1}`
-                                ).slice(0, 50),
                               })
                             }
                           />

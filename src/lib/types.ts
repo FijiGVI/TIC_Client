@@ -162,6 +162,7 @@ export type ServiceRequest = {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  requesterCanEdit: boolean;
   events?: RequestEvent[];
   attachments?: RequestAttachment[];
 };

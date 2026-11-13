@@ -64,3 +64,37 @@
 .workflow-decision .modal-actions {
   margin-top: 0;
 }
+
+.request-edit-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid #b9d8ee;
+  border-radius: 12px;
+  background: #f2f8fc;
+}
+
+.request-edit-callout div {
+  display: grid;
+  gap: 3px;
+}
+
+.request-edit-callout span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .request-edit-callout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .request-edit-callout button {
+    justify-content: center;
+    width: 100%;
+  }
+}

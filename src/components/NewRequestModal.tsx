@@ -8,7 +8,7 @@ import { ReferenceImage } from '@/components/ReferenceImage';
 import { api } from '@/lib/api';
 import { fieldIsVisible, initialFieldResponses } from '@/lib/fieldConditions';
 import { replaceUpload, validateImage } from '@/lib/uploads';
-import type { DepartmentOption, FormField, RequestForm } from '@/lib/types';
+import type { DepartmentOption, FormField, RequestForm, ServiceRequest } from '@/lib/types';
 
 const completeEmail = (value: string): string => {
   const normalized = value.trim();
@@ -155,6 +155,97 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
             )}
           </>
         )}
+      </section>
+    </div>
+  );
+}
+
+export function EditRequestModal({ request, onClose, onSaved }: { request: ServiceRequest; onClose(): void; onSaved(): void }) {
+  const requesterFields = useMemo(
+    () => request.formSnapshot.fields.filter((field) => !field.stepId),
+    [request.formSnapshot.fields],
+  );
+  const [responses, setResponses] = useState<Record<string, unknown>>(() => ({ ...request.responses }));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const visibleFields = useMemo(
+    () => requesterFields.filter((field) => fieldIsVisible(field, responses)),
+    [requesterFields, responses],
+  );
+
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose(); };
+    document.addEventListener('keydown', close);
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', close); document.body.style.overflow = ''; };
+  }, [onClose, saving]);
+
+  const setFieldValue = (field: FormField, value: unknown) => {
+    setResponses((current) => ({ ...current, [field.id]: value }));
+    setFieldErrors((current) => ({ ...current, [field.id]: '' }));
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const errors = Object.fromEntries(
+      visibleFields
+        .map((field) => [field.id, validateField(field, responses[field.id])] as const)
+        .filter(([, message]) => Boolean(message)),
+    );
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      setError('Correct the highlighted fields before saving.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await api.patch(`/requests/${request.id}`, { responses });
+      onSaved();
+      onClose();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to update request');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onMouseDown={() => !saving && onClose()}>
+      <section className="modal new-request-modal" role="dialog" aria-modal="true" aria-labelledby="edit-request-title" onMouseDown={(event) => event.stopPropagation()}>
+        <button className="modal-close" type="button" aria-label="Close request editor" disabled={saving} onClick={onClose}><IconX size={21} /></button>
+        <header className="modal-heading">
+          <p className="eyebrow">{request.referenceNumber}</p>
+          <h2 id="edit-request-title">Edit request</h2>
+          <p>You can update your submission until an approver records their first decision.</p>
+        </header>
+        <div className="new-request-scroll-area">
+          {error && <div className="alert" role="alert">{error}</div>}
+          <form id="edit-request-form" className="modal-request-form" noValidate onSubmit={submit}>
+            <div className="selected-service-summary">
+              <p className="eyebrow">{request.formSnapshot.groupName}</p>
+              <h3>{request.formSnapshot.name}</h3>
+              <p>{request.formSnapshot.description}</p>
+            </div>
+            <div className="dynamic-fields">
+              {visibleFields.map((field) => (
+                <DynamicFormField
+                  field={field}
+                  key={field.id}
+                  value={responses[field.id]}
+                  error={fieldErrors[field.id]}
+                  setValue={(value) => setFieldValue(field, value)}
+                  onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))}
+                />
+              ))}
+            </div>
+          </form>
+        </div>
+        <footer className="modal-footer">
+          <button className="secondary" type="button" disabled={saving} onClick={onClose}>Cancel</button>
+          <button className="primary" type="submit" form="edit-request-form" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+        </footer>
       </section>
     </div>
   );

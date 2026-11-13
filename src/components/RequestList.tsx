@@ -5,11 +5,12 @@ import {
   IconClock,
   IconFilePlus,
   IconDownload,
+  IconEdit,
   IconRefresh,
   IconSearch,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DynamicFormField, NewRequestModal } from "@/components/NewRequestModal";
+import { DynamicFormField, EditRequestModal, NewRequestModal } from "@/components/NewRequestModal";
 import { Pagination } from "@/components/Pagination";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { api } from "@/lib/api";
@@ -45,6 +46,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<ServiceRequest | null>(null);
   const [stepResponses, setStepResponses] = useState<Record<string, unknown>>({});
   const [decisionRemarks, setDecisionRemarks] = useState("");
   const selectedStep = selected?.currentStep === null || selected?.currentStep === undefined ? null : selected.formSnapshot.workflowSteps[selected.currentStep];
@@ -333,6 +335,18 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 Submitted {new Date(selected.createdAt).toLocaleString()}
               </span>
             </div>
+            {selected.requesterCanEdit && (
+              <div className="request-edit-callout">
+                <div>
+                  <strong>This request is still editable</strong>
+                  <span>Editing closes permanently after the first approver action.</span>
+                </div>
+                <button className="secondary" type="button" onClick={() => { setEditing(selected); setSelected(null); }}>
+                  <IconEdit size={17} />
+                  Edit request
+                </button>
+              </div>
+            )}
             {selectedStep && (
               <div className={`workflow-state ${canCompleteSelectedStep ? "pending-for-you" : ""}`}>
                 <div>
@@ -426,6 +440,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
         </div>
       )}
       {createOpen && <NewRequestModal onClose={() => setCreateOpen(false)} onSubmitted={() => void load()} />}
+      {editing && <EditRequestModal request={editing} onClose={() => setEditing(null)} onSaved={() => void load()} />}
     </>
   );
 }

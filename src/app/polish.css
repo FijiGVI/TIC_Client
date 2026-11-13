@@ -54,6 +54,87 @@ body{background:#f7f8fa}.portal-main{max-width:1600px;width:100%;margin-inline:a
 
 /* Cross-page spacing and responsive consistency */
 .auth-card .forgot-link{display:inline-flex;margin:-4px 0 14px;line-height:1.4}.auth-card .forgot-link+button{margin-top:0}.page-header>*{min-width:0}.page-header h1,.page-header p{overflow-wrap:anywhere}.surface{overflow:hidden}.request-toolbar{flex-wrap:wrap}.request-toolbar .segmented{max-width:100%;overflow-x:auto}.request-toolbar .search{margin-left:auto}.request-filters{grid-template-columns:minmax(190px,1.35fr) repeat(2,minmax(180px,1fr)) minmax(130px,auto)}.request-filters>*{min-width:0}.request-filters .secondary{white-space:nowrap}.builder-responsive>aside{min-width:0}.builder-responsive>aside>button{min-width:0;overflow:hidden}.builder-responsive>aside>button strong,.builder-responsive>aside>button small{overflow-wrap:anywhere}.builder-responsive>aside>.pagination{max-width:100%}.mapping-grid label{min-width:0}.sharepoint-surface{margin-bottom:24px}
+
+/* Login identity method transition */
+.auth-method-card { width: min(470px, 100%); }
+.auth-method-card > p:not(.eyebrow) { margin-bottom: 22px; }
+.auth-method-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 24px;
+  padding: 5px;
+  border: 1px solid #dce3e9;
+  border-radius: 14px;
+  background: #f1f5f8;
+}
+.auth-method-tabs button {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #667085;
+  text-align: left;
+}
+.auth-method-tabs button > span { display: grid; min-width: 0; gap: 2px; }
+.auth-method-tabs button strong { color: inherit; font-size: 13px; line-height: 1.2; }
+.auth-method-tabs button small { overflow: hidden; color: inherit; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.auth-method-tabs button.active {
+  border-color: #d9e2e9;
+  background: #fff;
+  color: var(--blue);
+  box-shadow: 0 3px 12px rgb(16 42 67 / 9%);
+}
+.auth-method-tabs button:focus-visible { outline: 3px solid rgb(23 105 170 / 18%); outline-offset: 2px; }
+.auth-method-panel { animation: auth-method-enter .24s cubic-bezier(.2,.8,.2,1); }
+.auth-method-intro { display: grid; gap: 3px; margin-bottom: 18px; }
+.auth-method-intro strong { color: #243b53; font-size: 14px; }
+.auth-method-intro small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.auth-method-panel > .primary { width: 100%; min-height: 48px; }
+.auth-method-help { margin: 14px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; text-align: center; }
+.microsoft-method-panel {
+  display: grid;
+  min-height: 316px;
+  align-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: 28px 24px;
+  border: 1px solid #e2e8ee;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fbfdff, #f4f8fb);
+  text-align: center;
+}
+.microsoft-method-icon {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  border-radius: 18px;
+  background: #fff;
+  color: #1769aa;
+  box-shadow: 0 8px 24px rgb(16 42 67 / 10%);
+}
+.microsoft-method-panel h3 { margin: 0 0 7px; font-size: 20px; }
+.microsoft-method-panel p { max-width: 360px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.microsoft-sign-in-button { align-self: stretch; }
+.auth-security-note { display: flex; align-items: center; gap: 6px; color: #667085; font-size: 10px; }
+@keyframes auth-method-enter {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-method-panel { animation: none; }
+}
+@media (max-width: 430px) {
+  .auth-method-tabs button { min-height: 54px; gap: 7px; padding-inline: 9px; }
+  .auth-method-tabs button small { display: none; }
+  .microsoft-method-panel { min-height: 290px; padding-inline: 18px; }
+}
 @media(max-width:1100px){.request-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.request-filters .secondary{width:100%}}
 @media(max-width:720px){.page-header{margin-bottom:22px}.page-header .primary{width:100%}.request-toolbar{align-items:stretch}.request-toolbar .search{width:100%;margin-left:0}.request-toolbar .segmented{width:100%}.request-toolbar .segmented button{flex:1}.request-filters{grid-template-columns:1fr}.mapping-grid{grid-template-columns:1fr;padding:16px}.sharepoint-table{padding:10px;background:#f7f8fa}.sharepoint-row.heading{display:none}.sharepoint-row:not(.heading){min-width:0;grid-template-columns:72px minmax(0,1fr);gap:7px 12px;margin-bottom:10px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fff}.sharepoint-row:not(.heading)>*:nth-child(n+3){grid-column:2}.sharepoint-row:not(.heading)>*:nth-child(3){font-weight:700}.builder-responsive>aside{padding:14px}.builder-responsive>aside>button{padding:14px;border:1px solid var(--line);background:#fff}.builder-responsive>aside>.pagination{margin:4px 0 0}.pagination{width:100%}}
 

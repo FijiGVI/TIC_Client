@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# generated credential handover files
+/HR-Service-Hub-TIC-Accounts.xlsx
+
 # debug
 npm-debug.log*
 yarn-debug.log*

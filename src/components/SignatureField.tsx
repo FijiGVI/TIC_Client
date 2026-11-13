@@ -9,10 +9,9 @@ type Props = {
   error?: string;
   disabled?: boolean;
   onChange(uploadId: string): void;
-  onBlur(): void;
 };
 
-export function SignatureField({ id, value, error, disabled, onChange, onBlur }: Props) {
+export function SignatureField({ id, value, error, disabled, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const [uploading, setUploading] = useState(false);
@@ -71,7 +70,6 @@ export function SignatureField({ id, value, error, disabled, onChange, onBlur }:
     setLocalError('');
     try {
       onChange(await replaceUpload(file, value));
-      onBlur();
     } catch (reason) {
       setLocalError(reason instanceof Error ? reason.message : 'Unable to upload signature');
     } finally {

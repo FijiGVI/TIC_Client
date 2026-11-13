@@ -44,6 +44,7 @@ export default function UsersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [organizationFilter, setOrganizationFilter] = useState('');
+  const [identitySourceFilter, setIdentitySourceFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [meta, setMeta] = useState(initialMeta);
@@ -62,11 +63,12 @@ export default function UsersPage() {
     if (source === 'tic') {
       if (search) parameters.set('search', search);
       if (organizationFilter) parameters.set('organization', organizationFilter);
+      if (identitySourceFilter) parameters.set('identitySource', identitySourceFilter);
       if (roleFilter) parameters.set('role', roleFilter);
       if (statusFilter) parameters.set('status', statusFilter);
     }
     return api.get<{ data: ManagedUser[]; meta: PaginationMeta }>(`/${source === 'tic' ? 'users' : 'act-identities'}?${parameters}`);
-  }, [organizationFilter, page, roleFilter, search, source, statusFilter]);
+  }, [identitySourceFilter, organizationFilter, page, roleFilter, search, source, statusFilter]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 300);
@@ -103,7 +105,14 @@ export default function UsersPage() {
     setRegistrations(response.data);
   }, [currentUser?.role]);
 
-  useEffect(() => { void loadRegistrations().catch((reason) => setError(reason instanceof Error ? reason.message : 'Unable to load registration requests')); }, [loadRegistrations]);
+  useEffect(() => {
+    if (currentUser?.role !== 'admin') return;
+    let active = true;
+    void api.get<{ data: GuestRegistration[] }>('/registration-requests?page=1&pageSize=50')
+      .then((response) => { if (active) setRegistrations(response.data); })
+      .catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : 'Unable to load registration requests'); });
+    return () => { active = false; };
+  }, [currentUser?.role]);
 
   useEffect(() => {
     if (currentUser?.role !== 'admin') return;
@@ -252,10 +261,11 @@ export default function UsersPage() {
       </div>
       {source === 'tic' && <div className="user-filter-toolbar" aria-label="Filter ticketing accounts">
         <label className="user-search"><span className="sr-only">Search users</span><IconSearch size={16}/><input type="search" value={searchInput} placeholder="Search name or email" onChange={(event) => setSearchInput(event.target.value)}/></label>
+        <label><span className="sr-only">Source</span><select value={identitySourceFilter} onChange={(event) => { setIdentitySourceFilter(event.target.value); setPage(1); }}><option value="">All sources</option><option value="tic">Local TIC</option><option value="microsoft">Microsoft SSO</option><option value="act">ACT linked</option></select></label>
         <label><span className="sr-only">Organization</span><select value={organizationFilter} onChange={(event) => { setOrganizationFilter(event.target.value); setPage(1); }}><option value="">All organizations</option><option value="GVI">GVI</option><option value="GVE">GVE</option><option value="HULMA">HULMA</option></select></label>
         <label><span className="sr-only">Role</span><select value={roleFilter} onChange={(event) => { setRoleFilter(event.target.value); setPage(1); }}><option value="">All roles</option>{roleOptions.map((option) => <option value={option.role} key={option.role}>{option.label}</option>)}</select></label>
         <label><span className="sr-only">Status</span><select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="pending">Pending</option></select></label>
-        <button type="button" className="secondary compact" disabled={!searchInput && !organizationFilter && !roleFilter && !statusFilter} onClick={() => { setSearchInput(''); setSearch(''); setOrganizationFilter(''); setRoleFilter(''); setStatusFilter(''); setPage(1); }}>Clear</button>
+        <button type="button" className="secondary compact" disabled={!searchInput && !identitySourceFilter && !organizationFilter && !roleFilter && !statusFilter} onClick={() => { setSearchInput(''); setSearch(''); setIdentitySourceFilter(''); setOrganizationFilter(''); setRoleFilter(''); setStatusFilter(''); setPage(1); }}>Clear</button>
       </div>}
       <div className="users-table-scroll"><table className="users-table">
         <thead><tr><th>Name</th><th>Email</th><th>Source</th><th>Organization</th><th>Roles</th><th>Status</th><th>Actions</th></tr></thead>

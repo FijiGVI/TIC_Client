@@ -463,6 +463,12 @@
   .workflow-accordion .builder-item-title small { align-items: flex-start; flex-direction: column; }
 }
 
+@media (min-width: 981px) {
+  .user-filter-toolbar {
+    grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(125px, .7fr)) auto;
+  }
+}
+
 /* Form field and workflow builder */
 .field-card-header {
   display: flex;

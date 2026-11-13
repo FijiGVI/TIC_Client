@@ -16,7 +16,9 @@ export function ReferenceImage({ uploadId, alt }: { uploadId: string; alt: strin
     return () => { active = false; };
   }, [uploadId]);
 
-  if (error) return <small className="field-error" role="alert">{error}</small>;
-  if (!url) return <small>Loading reference image…</small>;
-  return <Image unoptimized width={440} height={280} src={url} alt={alt}/>;
+  if (error) return <div className="upload-preview-placeholder" role="status">Image preview unavailable</div>;
+  if (!url) return <div className="upload-preview-placeholder" role="status">Loading image…</div>;
+  return <a className="upload-preview-link" href={url} target="_blank" rel="noreferrer" aria-label={`Open ${alt} at full size`}>
+    <Image unoptimized width={440} height={280} src={url} alt={alt}/>
+  </a>;
 }

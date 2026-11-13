@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicFormField, EditRequestModal, NewRequestModal } from "@/components/NewRequestModal";
 import { Pagination } from "@/components/Pagination";
+import { ReferenceImage } from "@/components/ReferenceImage";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { api } from "@/lib/api";
 import { fieldIsVisible, initialFieldResponses } from "@/lib/fieldConditions";
@@ -376,12 +377,14 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
               {selected.departmentSnapshot && <div><dt>Department</dt><dd>{selected.departmentSnapshot.code ? `${selected.departmentSnapshot.code} — ` : ""}{selected.departmentSnapshot.name}</dd></div>}
               {Object.entries(selected.responses).map(([key, value]) => {
                 const field = selected.formSnapshot.fields.find((candidate) => candidate.id === key);
-                const attachment = field?.type === 'csv' ? selected.attachments?.find((candidate) => candidate.id === value) : null;
+                const isPreviewable = field && ['image', 'reference_image', 'signature'].includes(field.type) && typeof value === 'string';
+                const isDownloadable = field && ['csv', 'pdf'].includes(field.type);
+                const attachment = isDownloadable ? selected.attachments?.find((candidate) => candidate.id === value) : null;
                 return <div key={key}>
                   <dt>
                     {field?.label || key}
                   </dt>
-                  <dd>{attachment ? <button type="button" className="secondary compact" onClick={() => void downloadAttachment(attachment.id)}><IconDownload size={15}/>{attachment.originalName}</button> : String(value)}</dd>
+                  <dd>{isPreviewable ? <figure className={`request-detail-upload ${field.type === 'signature' ? 'signature' : ''}`}><ReferenceImage uploadId={value as string} alt={`${field.label} submitted with this request`}/><figcaption>{field.type === 'signature' ? 'Submitted signature' : 'Submitted image'} · Select to view full size</figcaption></figure> : attachment ? <button type="button" className="secondary compact" onClick={() => void downloadAttachment(attachment.id)}><IconDownload size={15}/>{attachment.originalName}</button> : String(value)}</dd>
                 </div>;
               })}
             </dl>

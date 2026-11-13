@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { replaceUpload, validateImage } from '@/lib/uploads';
+import { ReferenceImage } from '@/components/ReferenceImage';
 
 type Props = {
   id: string;
@@ -101,6 +102,7 @@ export function SignatureField({ id, value, error, disabled, onChange }: Props) 
   };
 
   return <div className="signature-input" id={id}>
+    {value && <figure className="request-current-upload signature-current-upload"><ReferenceImage uploadId={value} alt="Current saved signature"/><figcaption>Current signature · Draw or import a PNG to replace it</figcaption></figure>}
     <canvas aria-label="Draw signature" ref={canvasRef} onPointerDown={start} onPointerMove={draw} onPointerUp={stop} onPointerCancel={stop} />
     <div className="signature-actions">
       <button type="button" className="secondary compact" disabled={disabled || uploading || !hasInk} onClick={saveDrawing}>Save signature</button>

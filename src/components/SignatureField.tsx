@@ -14,6 +14,7 @@ type Props = {
 export function SignatureField({ id, value, error, disabled, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [localError, setLocalError] = useState('');
   const [hasInk, setHasInk] = useState(false);
@@ -34,6 +35,9 @@ export function SignatureField({ id, value, error, disabled, onChange }: Props) 
       context.lineWidth = 2;
       context.strokeStyle = '#17202e';
     }
+    return () => {
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    };
   }, []);
 
   const point = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -57,8 +61,21 @@ export function SignatureField({ id, value, error, disabled, onChange }: Props) 
     context?.stroke();
     setHasInk(true);
   };
-  const stop = () => { drawingRef.current = false; };
+  const stop = () => {
+    const completedStroke = drawingRef.current;
+    drawingRef.current = false;
+    if (!completedStroke || disabled) return;
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      saveDrawing();
+    }, 600);
+  };
   const clear = () => {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
     const canvas = canvasRef.current;
     const context = canvas?.getContext('2d');
     if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
@@ -86,11 +103,11 @@ export function SignatureField({ id, value, error, disabled, onChange }: Props) 
   return <div className="signature-input" id={id}>
     <canvas aria-label="Draw signature" ref={canvasRef} onPointerDown={start} onPointerMove={draw} onPointerUp={stop} onPointerCancel={stop} />
     <div className="signature-actions">
-      <button type="button" className="secondary compact" disabled={disabled || uploading || !hasInk} onClick={saveDrawing}>Use drawing</button>
+      <button type="button" className="secondary compact" disabled={disabled || uploading || !hasInk} onClick={saveDrawing}>Save signature</button>
       <button type="button" className="secondary compact" disabled={disabled || uploading || !hasInk} onClick={clear}>Clear</button>
       <label className="signature-upload secondary compact">Import PNG<input type="file" accept="image/png" disabled={disabled || uploading} onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const issue = validateImage(file, true); if (issue) { setLocalError(issue); return; } void persist(file); }} /></label>
     </div>
-    <small>{uploading ? 'Uploading signature…' : value ? 'Signature saved' : 'Draw above or import a transparent PNG signature.'}</small>
+    <small>{uploading ? 'Saving signature…' : value ? 'Signature saved' : hasInk ? 'Your signature will save automatically.' : 'Draw above or import a transparent PNG signature.'}</small>
     {(localError || error) && <small className="field-error" role="alert">{localError || error}</small>}
   </div>;
 }

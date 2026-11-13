@@ -21,6 +21,8 @@ import {
 import { api } from "@/lib/api";
 import { fieldIsVisible, initialFieldResponses } from "@/lib/fieldConditions";
 import { Pagination } from "@/components/Pagination";
+import { ReferenceImage } from "@/components/ReferenceImage";
+import { replaceUpload, validateImage } from "@/lib/uploads";
 import type { ConditionOperator, FieldCondition, FieldType, FormField, FormGroup, PaginationMeta, RequestForm, Role, RoleOption } from "@/lib/types";
 
 type Draft = Omit<RequestForm, "id"> | RequestForm;
@@ -37,6 +39,10 @@ const fieldTypes: FieldType[] = [
   "radio",
   "checkbox",
   "csv",
+  "image",
+  "reference_image",
+  "signature",
+  "pdf",
 ];
 const slug = (value: string) =>
   value
@@ -155,6 +161,18 @@ function StepConditionEditor({ condition, availableFields, onChange }: { conditi
   </fieldset>;
 }
 
+function ReferenceImageConfiguration({ field, onPatch }: { field: FormField; onPatch(patch: Partial<FormField>): void }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  return <label className="reference-image-config">Reference image
+    <small>Upload a JPG, PNG, or WebP example (maximum 10 MB). Requesters will see it beside their image input.</small>
+    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const issue = validateImage(file); if (issue) { setError(issue); event.target.value = ''; return; } setUploading(true); setError(''); try { onPatch({ referenceImageUploadId: await replaceUpload(file, field.referenceImageUploadId, 'form_reference') }); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to upload reference image'); } finally { setUploading(false); } }}/>
+    {uploading && <small>Uploading reference image…</small>}
+    {field.referenceImageUploadId && <span className="reference-image-preview"><ReferenceImage uploadId={field.referenceImageUploadId} alt="Configured reference"/><button type="button" className="danger compact" onClick={() => onPatch({ referenceImageUploadId: null })}>Remove</button></span>}
+    {error && <small className="field-error" role="alert">{error}</small>}
+  </label>;
+}
+
 function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onValidationPatch }: { field: FormField; index: number; fields: FormField[]; workflowSteps: Draft["workflowSteps"]; onPatch(patch: Partial<FormField>): void; onValidationPatch(patch: Partial<FormField["validation"]>): void }) {
   const numericChange = (key: "min" | "max", raw: string, value: number) => {
     if (raw === "") { onValidationPatch({ [key]: undefined }); return; }
@@ -165,13 +183,14 @@ function InlineFieldEditor({ field, index, fields, workflowSteps, onPatch, onVal
   return <div className="inline-field-editor" onClick={(event) => event.stopPropagation()}>
     <div className="field-settings-grid">
       <label>Field label<input value={field.label} onChange={(event) => onPatch({ label: event.target.value, id: (slug(event.target.value).replaceAll("-", "_") || `field_${index + 1}`).slice(0, 50) })}/></label>
-      <label>Field type<select value={field.type} onChange={(event) => { const type = event.target.value as FieldType; onPatch({ type, defaultValue: null, ...(type === 'csv' ? { stepId: null } : {}) }); }}>{fieldTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
+      <label>Field type<select value={field.type} onChange={(event) => { const type = event.target.value as FieldType; onPatch({ type, defaultValue: null, ...(type === 'csv' ? { stepId: null } : {}), ...(type !== 'reference_image' ? { referenceImageUploadId: null } : {}) }); }}>{fieldTypes.map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}</select></label>
       <label>Completed by<select disabled={field.type === 'csv'} value={field.stepId || ""} onChange={(event) => onPatch({ stepId: event.target.value || null, condition: { logic: "and", groups: [] } })}><option value="">Requester submission</option>{workflowSteps.map((step) => <option value={step.id} key={step.id}>{step.name}</option>)}</select></label>
     </div>
     <label className="field-help">Help text or instructions<textarea value={field.description} placeholder="Explain what information should be entered in this field." onChange={(event) => onPatch({ description: event.target.value })}/></label>
+    {field.type === 'reference_image' && <ReferenceImageConfiguration field={field} onPatch={onPatch}/>}
     {['select', 'radio'].includes(field.type) && <label>Options<textarea className="options" value={field.options.join("\n")} placeholder="One option per line, or separate options with commas" onChange={(event) => onPatch({ options: event.target.value.split(/[\n,]/).map((value) => value.trim()).filter(Boolean), defaultValue: null })}/></label>}
     <div className="field-defaults-grid">
-      {field.type === 'csv' ? <div className="field-type-note"><strong>CSV upload</strong><small>Accepts one CSV file up to 10 MB. The uploaded file remains available from the submitted request.</small></div> : field.type === 'checkbox' ? <label className="check"><input type="checkbox" checked={field.defaultValue === true} onChange={(event) => onPatch({ defaultValue: event.target.checked })}/>Checked by default</label> : <label>Default value{['select', 'radio'].includes(field.type) ? <select value={String(field.defaultValue ?? "")} onChange={(event) => onPatch({ defaultValue: event.target.value || null })}><option value="">No default value</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <input type={['number', 'date', 'time'].includes(field.type) ? field.type : 'text'} min={field.type === 'number' ? 0 : undefined} value={String(field.defaultValue ?? "")} onChange={(event) => { if (field.type === 'number' && event.target.value !== '') { const value = event.target.valueAsNumber; if (!Number.isFinite(value) || value < 0 || (field.validation.min !== undefined && value < field.validation.min) || (field.validation.max !== undefined && value > field.validation.max)) return; onPatch({ defaultValue: value }); } else onPatch({ defaultValue: event.target.value || null }); }}/>}</label>}
+      {field.type === 'csv' ? <div className="field-type-note"><strong>CSV upload</strong><small>Accepts one CSV file up to 10 MB. The uploaded file remains available from the submitted request.</small></div> : field.type === 'pdf' ? <div className="field-type-note"><strong>PDF upload</strong><small>Accepts one PDF document up to 10 MB.</small></div> : ['image', 'reference_image', 'signature'].includes(field.type) ? <div className="field-type-note"><strong>{field.type === 'signature' ? 'Electronic signature' : 'Image upload'}</strong><small>{field.type === 'signature' ? 'The user can draw a signature or import a PNG.' : 'Accepts one JPG, PNG, or WebP image up to 10 MB.'}</small></div> : field.type === 'checkbox' ? <label className="check"><input type="checkbox" checked={field.defaultValue === true} onChange={(event) => onPatch({ defaultValue: event.target.checked })}/>Checked by default</label> : <label>Default value{['select', 'radio'].includes(field.type) ? <select value={String(field.defaultValue ?? "")} onChange={(event) => onPatch({ defaultValue: event.target.value || null })}><option value="">No default value</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <input type={['number', 'date', 'time'].includes(field.type) ? field.type : 'text'} min={field.type === 'number' ? 0 : undefined} value={String(field.defaultValue ?? "")} onChange={(event) => { if (field.type === 'number' && event.target.value !== '') { const value = event.target.valueAsNumber; if (!Number.isFinite(value) || value < 0 || (field.validation.min !== undefined && value < field.validation.min) || (field.validation.max !== undefined && value > field.validation.max)) return; onPatch({ defaultValue: value }); } else onPatch({ defaultValue: event.target.value || null }); }}/>}</label>}
       {!['checkbox', 'radio', 'select', 'csv'].includes(field.type) && <label>Placeholder<input maxLength={300} value={field.placeholder || ""} placeholder="Text shown before the user enters a value" onChange={(event) => onPatch({ placeholder: event.target.value })}/></label>}
     </div>
     {['text', 'textarea', 'email'].includes(field.type) && <fieldset className="validation-editor"><legend>Validation rules</legend><label>Minimum length<input type="number" min="0" max="10000" value={field.validation.minLength ?? ""} onChange={(event) => onValidationPatch({ minLength: event.target.value === '' ? undefined : Math.max(0, event.target.valueAsNumber) })}/></label><label>Maximum length<input type="number" min="1" max="10000" value={field.validation.maxLength ?? ""} onChange={(event) => { const value = event.target.valueAsNumber; if (event.target.value !== '' && (!Number.isFinite(value) || value < 1)) return; onValidationPatch({ maxLength: event.target.value === '' ? undefined : value }); }}/></label><label className="validation-pattern">Pattern (regular expression)<input maxLength={300} value={field.validation.pattern ?? ""} placeholder="Example: ^ABC-[0-9]{4}$" onChange={(event) => onValidationPatch({ pattern: event.target.value || undefined })}/></label><label>Pattern flags<select disabled={!field.validation.pattern} value={field.validation.patternFlags ?? ""} onChange={(event) => onValidationPatch({ patternFlags: event.target.value || undefined })}><option value="">Case-sensitive</option><option value="i">Ignore case</option><option value="m">Multiline</option><option value="im">Ignore case + multiline</option></select></label><label className="validation-message">Error message<input maxLength={300} value={field.validation.message ?? ""} onChange={(event) => onValidationPatch({ message: event.target.value || undefined })}/></label>{validationIssue && <small className="field-error validation-help" role="alert">{validationIssue}</small>}</fieldset>}
@@ -247,17 +266,21 @@ function PreviewField({ field, value, onChange }: { field: FormField; value: unk
         <input type="file" accept=".csv,text/csv,application/csv" onChange={(event) => onChange(event.target.files?.[0]?.name || "")} />
       </label>
     );
+  if (field.type === "signature")
+    return <label className="field-wide"><span>{label}</span>{description}<div className="preview-signature-pad">Signature drawing pad or PNG import</div></label>;
+  if (field.type === "image" || field.type === "reference_image")
+    return <label className="field-wide"><span>{label}</span>{description}{field.type === 'reference_image' && field.referenceImageUploadId && <figure className="request-reference-image"><ReferenceImage uploadId={field.referenceImageUploadId} alt={`Reference example for ${field.label}`}/><figcaption>Reference example</figcaption></figure>}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => onChange(event.target.files?.[0]?.name || "")}/></label>;
   return (
     <label>
       <span>{label}</span>
       {description}
       <input
         type={
-          field.type === "image" || field.type === "pdf" ? "file" : field.type
+          field.type === "pdf" ? "file" : field.type
         }
         min={field.type === "number" ? field.validation.min ?? 0 : undefined}
         max={field.type === "number" ? field.validation.max : undefined}
-        value={field.type === "image" || field.type === "pdf" ? undefined : String(value || "")}
+        value={field.type === "pdf" ? undefined : String(value || "")}
         placeholder={field.placeholder || field.description}
         onChange={(event) => onChange(event.target.value)}
       />

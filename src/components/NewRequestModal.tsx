@@ -3,8 +3,11 @@
 import { IconCheck, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { SignatureField } from '@/components/SignatureField';
+import { ReferenceImage } from '@/components/ReferenceImage';
 import { api } from '@/lib/api';
 import { fieldIsVisible, initialFieldResponses } from '@/lib/fieldConditions';
+import { replaceUpload, validateImage } from '@/lib/uploads';
 import type { DepartmentOption, FormField, RequestForm } from '@/lib/types';
 
 const completeEmail = (value: string): string => {
@@ -39,7 +42,7 @@ const validateField = (field: FormField, value: unknown): string => {
 };
 
 type FieldProps = { field: FormField; value: unknown; error?: string; setValue(value: unknown): void; onBlur(): void };
-function Field({ field, value, error, setValue, onBlur }: FieldProps) {
+export function DynamicFormField({ field, value, error, setValue, onBlur }: FieldProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadName, setUploadName] = useState('');
   const [uploadError, setUploadError] = useState('');
@@ -48,13 +51,26 @@ function Field({ field, value, error, setValue, onBlur }: FieldProps) {
   const feedback = error ? <small className="field-error" id={errorId} role="alert">{error}</small> : null;
   const description = field.description ? <small className="field-description" id={descriptionId}>{field.description}</small> : null;
   const accessibility = { 'aria-invalid': Boolean(error), 'aria-describedby': [field.description ? descriptionId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined };
+  if (field.type === 'signature') return <div className="field-wide request-upload-field"><span className="field-label">{field.label}</span>{description}<SignatureField id={field.id} value={typeof value === 'string' ? value : ''} error={error} onChange={setValue} onBlur={onBlur}/></div>;
+  if (field.type === 'image' || field.type === 'reference_image') return <div className="field-wide request-upload-field">
+    <span className="field-label">{field.label}</span>{description}
+    {field.type === 'reference_image' && field.referenceImageUploadId && <figure className="request-reference-image"><ReferenceImage uploadId={field.referenceImageUploadId} alt={`Reference example for ${field.label}`}/><figcaption>Reference example</figcaption></figure>}
+    <label className="image-file-input"><span>Choose image</span><input {...accessibility} type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const issue = validateImage(file); if (issue) { setUploadError(issue); event.target.value = ''; return; } setUploading(true); setUploadError(''); try { setValue(await replaceUpload(file, typeof value === 'string' ? value : '')); setUploadName(file.name); onBlur(); } catch (reason) { setUploadError(reason instanceof Error ? reason.message : 'Unable to upload image'); } finally { setUploading(false); } }}/></label>
+    <small>{uploading ? 'Uploading…' : uploadName || (value ? 'Image uploaded' : 'JPG, PNG, or WebP; maximum 10 MB.')}</small>
+    {(uploadError || error) && <small className="field-error" id={errorId} role="alert">{uploadError || error}</small>}
+  </div>;
+  if (field.type === 'pdf') return <div className="field-wide request-upload-field">
+    <span className="field-label">{field.label}</span>{description}
+    <label><span>Choose PDF</span><input {...accessibility} type="file" accept="application/pdf,.pdf" disabled={uploading} onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; if (file.type !== 'application/pdf' || file.size < 1 || file.size > 10 * 1024 * 1024) { setUploadError('Select a PDF between 1 byte and 10 MB.'); event.target.value = ''; return; } setUploading(true); setUploadError(''); try { setValue(await replaceUpload(file, typeof value === 'string' ? value : '')); setUploadName(file.name); onBlur(); } catch (reason) { setUploadError(reason instanceof Error ? reason.message : 'Unable to upload PDF'); } finally { setUploading(false); } }}/></label>
+    <small>{uploading ? 'Uploading…' : uploadName || (value ? 'PDF uploaded' : 'PDF; maximum 10 MB.')}</small>
+    {(uploadError || error) && <small className="field-error" id={errorId} role="alert">{uploadError || error}</small>}
+  </div>;
   if (field.type === 'csv') return <label className="field-wide"><span>{field.label}</span>{description}<input {...accessibility} type="file" accept=".csv,text/csv,application/csv" disabled={uploading} onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setUploadError(''); if (!file.name.toLowerCase().endsWith('.csv') || file.size < 1 || file.size > 10 * 1024 * 1024) { setUploadError('Select a CSV file between 1 byte and 10 MB.'); event.target.value = ''; return; } setUploading(true); const previousId = typeof value === 'string' ? value : ''; try { const contentType = file.type === 'application/vnd.ms-excel' ? file.type : file.type === 'application/csv' ? file.type : 'text/csv'; const created = await api.post<{ data: { id: string; uploadUrl: string; headers: Record<string, string> } }>('/uploads', { fileName: file.name, contentType, sizeBytes: file.size }); const uploaded = await fetch(created.data.uploadUrl, { method: 'PUT', headers: created.data.headers, body: file }); if (!uploaded.ok) throw new Error('CSV upload failed'); await api.post(`/uploads/${created.data.id}/complete`); setValue(created.data.id); setUploadName(file.name); if (previousId) await api.delete(`/uploads/${previousId}`).catch(() => undefined); onBlur(); } catch (reason) { setValue(''); setUploadError(reason instanceof Error ? reason.message : 'Unable to upload CSV file'); } finally { setUploading(false); } }} />{uploading ? 'Uploading…' : uploadName || (value ? 'CSV uploaded' : '')}{(uploadError || error) && <small className="field-error" role="alert">{uploadError || error}</small>}</label>;
   if (field.type === 'textarea') return <label className="field-wide"><span>{field.label}</span>{description}<textarea {...accessibility} required={field.required} minLength={field.validation.minLength} maxLength={field.validation.maxLength} placeholder={field.placeholder} value={String(value || '')} onBlur={onBlur} onChange={(event) => setValue(event.target.value)} />{feedback}</label>;
   if (field.type === 'select') return <label><span>{field.label}</span>{description}<select {...accessibility} required={field.required} value={String(value || '')} onBlur={onBlur} onChange={(event) => setValue(event.target.value)}><option value="">Select one</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select>{feedback}</label>;
   if (field.type === 'radio') return <fieldset {...accessibility} onBlur={onBlur}><legend>{field.label}</legend>{description}{field.options.map((option) => <label className="radio" key={option}><input required={field.required} type="radio" name={field.id} checked={value === option} onChange={() => setValue(option)} />{option}</label>)}{feedback}</fieldset>;
   if (field.type === 'checkbox') return <label className="radio"><input {...accessibility} required={field.required} type="checkbox" checked={Boolean(value)} onBlur={onBlur} onChange={(event) => setValue(event.target.checked)} />{field.label}{feedback}</label>;
-  const isFile = field.type === 'image' || field.type === 'pdf';
-  return <label><span>{field.label}</span>{description}<input {...accessibility} required={field.required} minLength={field.validation.minLength} maxLength={field.validation.maxLength} min={field.type === 'number' ? field.validation.min ?? 0 : field.validation.min} max={field.validation.max} pattern={field.validation.patternFlags ? undefined : field.validation.pattern} placeholder={field.placeholder} type={isFile ? 'file' : field.type} value={isFile ? undefined : String(value || '')} onChange={(event) => { if (field.type === 'number' && event.target.value !== '') { if (event.target.valueAsNumber < 0) return; setValue(event.target.valueAsNumber); return; } setValue(event.target.value); }} onBlur={(event) => { if (field.type === 'email') setValue(completeEmail(event.target.value)); onBlur(); }} />{feedback}</label>;
+  return <label><span>{field.label}</span>{description}<input {...accessibility} required={field.required} minLength={field.validation.minLength} maxLength={field.validation.maxLength} min={field.type === 'number' ? field.validation.min ?? 0 : field.validation.min} max={field.validation.max} pattern={field.validation.patternFlags ? undefined : field.validation.pattern} placeholder={field.placeholder} type={field.type} value={String(value || '')} onChange={(event) => { if (field.type === 'number' && event.target.value !== '') { if (event.target.valueAsNumber < 0) return; setValue(event.target.valueAsNumber); return; } setValue(event.target.value); }} onBlur={(event) => { if (field.type === 'email') setValue(completeEmail(event.target.value)); onBlur(); }} />{feedback}</label>;
 }
 
 export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onSubmitted(): void }) {
@@ -71,7 +87,7 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
 
   useEffect(() => {
     Promise.all([api.get<{ data: RequestForm[] }>('/forms/public'), api.get<{ data: DepartmentOption[] }>('/departments')])
-      .then(([formResponse, departmentResponse]) => { setForms(formResponse.data); setFormId(formResponse.data[0]?.id || ''); setDepartments(departmentResponse.data); setDepartmentId(user?.departmentId || ''); })
+      .then(([formResponse, departmentResponse]) => { const firstForm = formResponse.data[0]; setForms(formResponse.data); setFormId(firstForm?.id || ''); setResponses(initialFieldResponses(firstForm?.fields.filter((field) => !field.stepId) || [])); setDepartments(departmentResponse.data); setDepartmentId(user?.departmentId || ''); })
       .catch((reason: Error) => setError(reason.message));
   }, [user?.departmentId]);
   useEffect(() => {
@@ -85,10 +101,6 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
   const requesterFields = useMemo(() => selected?.fields.filter((field) => !field.stepId) || [], [selected]);
   const visibleRequesterFields = useMemo(() => requesterFields.filter((field) => fieldIsVisible(field, responses)), [requesterFields, responses]);
   const groups = useMemo(() => [...new Set(forms.map((form) => form.groupName))], [forms]);
-  useEffect(() => {
-    setResponses(initialFieldResponses(requesterFields));
-    setFieldErrors({});
-  }, [formId, requesterFields]);
   const setFieldValue = (field: FormField, value: unknown) => { setResponses((current) => ({ ...current, [field.id]: value })); setFieldErrors((current) => ({ ...current, [field.id]: '' })); };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -98,7 +110,7 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
     if (!departmentId || Object.keys(errors).length) { setError('Please complete the department and correct the highlighted fields.'); return; }
     setSaving(true); setError('');
     try {
-      const attachmentIds = visibleRequesterFields.filter((field) => field.type === 'csv').map((field) => responses[field.id]).filter((value): value is string => typeof value === 'string' && Boolean(value));
+      const attachmentIds = visibleRequesterFields.filter((field) => ['csv', 'image', 'reference_image', 'signature', 'pdf'].includes(field.type)).map((field) => responses[field.id]).filter((value): value is string => typeof value === 'string' && Boolean(value));
       const result = await api.post<{ data: { referenceNumber: string } }>('/requests', { formId, departmentId, responses, attachmentIds });
       setSuccess(result.data.referenceNumber); onSubmitted();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to submit request'); }
@@ -124,7 +136,7 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
                       <label><span>Department</span><small>Automatically assigned from your user profile.</small><select required disabled value={departmentId}><option value="">Department not configured</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
                       <div className="selected-service-summary"><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p></div>
                     </div>
-                    <div className="dynamic-fields">{visibleRequesterFields.map((field) => <Field field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div>
+                    <div className="dynamic-fields">{visibleRequesterFields.map((field) => <DynamicFormField field={field} key={field.id} value={responses[field.id]} error={fieldErrors[field.id]} setValue={(value) => setFieldValue(field, value)} onBlur={() => setFieldErrors((current) => ({ ...current, [field.id]: validateField(field, responses[field.id]) }))} />)}</div>
                   </form>
                 ) : <div className="empty"><h3>No request forms available</h3></div>}
               </div>

@@ -35,6 +35,8 @@ export type FieldType =
   | "checkbox"
   | "csv"
   | "image"
+  | "reference_image"
+  | "signature"
   | "pdf";
 export type ConditionOperator = "equals" | "not_equals" | "contains" | "is_empty" | "is_not_empty";
 export type ConditionRule = { fieldId: string; operator: ConditionOperator; value: string };
@@ -51,6 +53,7 @@ export type FormField = {
   defaultValue: string | number | boolean | null;
   placeholder: string;
   options: string[];
+  referenceImageUploadId?: string | null;
   stepId?: string | null;
   condition: FieldCondition;
   validation: {

@@ -9,7 +9,7 @@ import {
   IconSearch,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NewRequestModal } from "@/components/NewRequestModal";
+import { DynamicFormField, NewRequestModal } from "@/components/NewRequestModal";
 import { Pagination } from "@/components/Pagination";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { api } from "@/lib/api";
@@ -395,44 +395,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 <h3>{selectedStep.name} fields</h3>
                 {selectedStep.instructions && <p>{selectedStep.instructions}</p>}
                 <div className="dynamic-fields step-response-fields">
-                  {selectedStepFields.map((field) => field.type === "radio" ? (
-                    <fieldset className="step-radio-field" key={field.id}>
-                      <legend>{field.label}{field.required && <span aria-hidden="true"> *</span>}</legend>
-                      {field.description && <small className="field-description">{field.description}</small>}
-                      <div className="step-radio-options">
-                        {field.options.map((option) => (
-                          <label className="radio" key={option}>
-                            <input
-                              required={field.required}
-                              type="radio"
-                              name={`step-field-${field.id}`}
-                              value={option}
-                              checked={stepResponses[field.id] === option}
-                              onChange={() => setStepResponses({ ...stepResponses, [field.id]: option })}
-                            />
-                            <span>{option}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                  ) : (
-                    <label key={field.id}>
-                      {field.label}{field.required && <span aria-hidden="true"> *</span>}
-                      {field.description && <small className="field-description" id={`step-${field.id}-description`}>{field.description}</small>}
-                      {field.type === "textarea" ? (
-                        <textarea aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} placeholder={field.placeholder} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })} />
-                      ) : field.type === "select" ? (
-                        <select aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} value={String(stepResponses[field.id] || "")} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.value })}>
-                          <option value="">Select one</option>
-                          {field.options.map((option) => <option key={option}>{option}</option>)}
-                        </select>
-                      ) : field.type === "checkbox" ? (
-                        <input type="checkbox" checked={Boolean(stepResponses[field.id])} onChange={(event) => setStepResponses({ ...stepResponses, [field.id]: event.target.checked })} />
-                      ) : (
-                        <input aria-describedby={field.description ? `step-${field.id}-description` : undefined} required={field.required} placeholder={field.placeholder} min={field.type === "number" ? field.validation.min ?? 0 : undefined} max={field.type === "number" ? field.validation.max : undefined} type={field.type} value={String(stepResponses[field.id] || "")} onChange={(event) => { if (field.type === "number" && event.target.value !== "" && event.target.valueAsNumber < 0) return; setStepResponses({ ...stepResponses, [field.id]: event.target.value }); }} />
-                      )}
-                    </label>
-                  ))}
+                  {selectedStepFields.map((field) => <DynamicFormField key={field.id} field={field} value={stepResponses[field.id]} setValue={(value) => setStepResponses((current) => ({ ...current, [field.id]: value }))} onBlur={() => undefined}/>)}
                 </div>
               </>
             )}

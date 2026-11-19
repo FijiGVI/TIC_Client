@@ -1,7 +1,7 @@
 'use client';
 
 import { IconCheck, IconX } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { SignatureField } from '@/components/SignatureField';
 import { ReferenceImage } from '@/components/ReferenceImage';
@@ -84,7 +84,10 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
   const [departmentId, setDepartmentId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [wasDuplicate, setWasDuplicate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
     Promise.all([api.get<{ data: RequestForm[] }>('/forms/public'), api.get<{ data: DepartmentOption[] }>('/departments')])
@@ -102,20 +105,24 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
   const requesterFields = useMemo(() => selected?.fields.filter((field) => !field.stepId) || [], [selected]);
   const visibleRequesterFields = useMemo(() => requesterFields.filter((field) => fieldIsVisible(field, responses)), [requesterFields, responses]);
   const groups = useMemo(() => [...new Set(forms.map((form) => form.groupName))], [forms]);
-  const setFieldValue = (field: FormField, value: unknown) => { setResponses((current) => ({ ...current, [field.id]: value })); setFieldErrors((current) => ({ ...current, [field.id]: '' })); };
+  const setFieldValue = (field: FormField, value: unknown) => {
+    idempotencyKeyRef.current = crypto.randomUUID();
+    setResponses((current) => ({ ...current, [field.id]: value }));
+    setFieldErrors((current) => ({ ...current, [field.id]: '' }));
+  };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selected || !user) return;
+    if (!selected || !user || submittingRef.current) return;
     const errors = Object.fromEntries(visibleRequesterFields.map((field) => [field.id, validateField(field, responses[field.id])] as const).filter(([, message]) => Boolean(message)));
     setFieldErrors(errors);
     if (!departmentId || Object.keys(errors).length) { setError('Please complete the department and correct the highlighted fields.'); return; }
-    setSaving(true); setError('');
+    submittingRef.current = true; setSaving(true); setError('');
     try {
       const attachmentIds = visibleRequesterFields.filter((field) => ['csv', 'image', 'reference_image', 'signature', 'pdf'].includes(field.type)).map((field) => responses[field.id]).filter((value): value is string => typeof value === 'string' && Boolean(value));
-      const result = await api.post<{ data: { referenceNumber: string } }>('/requests', { formId, departmentId, responses, attachmentIds });
-      setSuccess(result.data.referenceNumber); onSubmitted();
+      const result = await api.post<{ data: { referenceNumber: string }; deduplicated?: boolean }>('/requests', { formId, departmentId, responses, attachmentIds }, { headers: { 'Idempotency-Key': idempotencyKeyRef.current } });
+      setWasDuplicate(Boolean(result.deduplicated)); setSuccess(result.data.referenceNumber); onSubmitted();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to submit request'); }
-    finally { setSaving(false); }
+    finally { submittingRef.current = false; setSaving(false); }
   };
 
   return (
@@ -123,7 +130,7 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
       <section className="modal new-request-modal" role="dialog" aria-modal="true" aria-labelledby="new-request-title" onMouseDown={(event) => event.stopPropagation()}>
         <button className="modal-close" type="button" aria-label="Close new request" onClick={onClose}><IconX size={21} /></button>
         {success ? (
-          <div className="modal-success"><span><IconCheck size={30} /></span><p className="eyebrow">Request received</p><h2 id="new-request-title">You’re all set.</h2><p>We’ll email you as the request progresses.</p><strong>{success}</strong><button className="primary" type="button" onClick={onClose}>View my requests</button></div>
+          <div className="modal-success"><span><IconCheck size={30} /></span><p className="eyebrow">{wasDuplicate ? 'Existing request found' : 'Request received'}</p><h2 id="new-request-title">{wasDuplicate ? 'No duplicate was created.' : 'You’re all set.'}</h2><p>{wasDuplicate ? 'The same request was submitted moments ago, so we kept the original ticket.' : 'We’ll email you as the request progresses.'}</p><strong>{success}</strong><button className="primary" type="button" onClick={onClose}>View my requests</button></div>
         ) : (
           <>
             <header className="modal-heading"><p className="eyebrow">Employee services</p><h2 id="new-request-title">New request</h2><p>Choose a service and provide the details the team needs.</p></header>
@@ -133,7 +140,7 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
                 {selected ? (
                   <form id="new-request-form" noValidate onSubmit={submit}>
                     <div className="request-context-grid">
-                      <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { const nextId = event.target.value; const nextForm = forms.find((form) => form.id === nextId); setFormId(nextId); setResponses(initialFieldResponses(nextForm?.fields.filter((field) => !field.stepId) || [])); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
+                      <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { const nextId = event.target.value; const nextForm = forms.find((form) => form.id === nextId); idempotencyKeyRef.current = crypto.randomUUID(); setFormId(nextId); setResponses(initialFieldResponses(nextForm?.fields.filter((field) => !field.stepId) || [])); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
                       <label><span>Department</span><small>Automatically assigned from your user profile.</small><select required disabled value={departmentId}><option value="">Department not configured</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
                       <div className="selected-service-summary"><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p></div>
                     </div>

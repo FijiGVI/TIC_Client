@@ -165,7 +165,7 @@ async function request<T>(scope: ApiScope, path: string, init: RequestInit = {},
 function createApi(scope: ApiScope) {
   return {
     get: <T>(path: string) => request<T>(scope, path),
-    post: <T>(path: string, body?: unknown) => request<T>(scope, path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
+    post: <T>(path: string, body?: unknown, options?: { headers?: HeadersInit }) => request<T>(scope, path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body), headers: options?.headers }),
     put: <T>(path: string, body: unknown) => request<T>(scope, path, { method: 'PUT', body: JSON.stringify(body) }),
     patch: <T>(path: string, body: unknown) => request<T>(scope, path, { method: 'PATCH', body: JSON.stringify(body) }),
     delete: <T = void>(path: string) => request<T>(scope, path, { method: 'DELETE' }),

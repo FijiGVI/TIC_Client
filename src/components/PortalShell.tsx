@@ -1,12 +1,14 @@
 'use client';
 
 import { IconChevronLeft, IconChevronRight, IconClipboardList, IconDatabaseImport, IconForms, IconHistory, IconLayoutDashboard, IconLogout, IconMenu2, IconSettings, IconShieldLock, IconUsers, IconX } from '@tabler/icons-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { actApi, api } from '@/lib/api';
 import { PageHelp } from '@/components/PageHelp';
+import hrLogo from '@/assets/logo/Logo_HR.png';
 
 export function PortalShell({ children }: { children: ReactNode }) {
   const { user, loading, logout, refreshUser, switchRole } = useAuth();
@@ -117,7 +119,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
 
   return <div className={`portal ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <aside className={`sidebar ${navigationOpen ? 'mobile-open' : ''}`} id="primary-sidebar">
-      <div className="brand"><span>G</span><div><strong>GVI Ticketing</strong><small>Employee Services</small></div></div>
+      <div className="brand"><span className="brand-logo-shell"><Image src={hrLogo} alt="" priority /></span><div><strong>GVI Ticketing</strong><small>Employee Services</small></div></div>
       <button className="sidebar-collapse" type="button" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed((value) => !value)}>{sidebarCollapsed ? <IconChevronRight size={18} /> : <IconChevronLeft size={18} />}</button>
       <nav aria-label="Primary navigation">{links.map(({ href, label, icon: Icon }) => <Link className={pathname === href ? 'active' : ''} href={href} key={href} title={sidebarCollapsed ? label : undefined} aria-current={pathname === href ? 'page' : undefined} onClick={() => setNavigationOpen(false)}><Icon size={20} /><span>{label}</span></Link>)}</nav>
       <div className="sidebar-user">
@@ -127,7 +129,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
       </div>
     </aside>
     {navigationOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
-    <header className="mobile-header"><button className="mobile-menu-toggle" type="button" aria-label={navigationOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={navigationOpen} aria-controls="primary-sidebar" onClick={() => setNavigationOpen((open) => !open)}>{navigationOpen ? <IconX size={21} /> : <IconMenu2 size={21} />}</button><Link className="mobile-brand" href="/dashboard" aria-label="GVI Ticketing System home"><span>G</span><strong>GVI Ticketing</strong></Link><div className="mobile-account"><button className="mobile-profile-trigger" type="button" onClick={openProfile} aria-label="Open account settings">{user.name}</button><button type="button" onClick={() => void logout()} aria-label="Log out"><IconLogout size={18} /></button></div></header>
+    <header className="mobile-header"><button className="mobile-menu-toggle" type="button" aria-label={navigationOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={navigationOpen} aria-controls="primary-sidebar" onClick={() => setNavigationOpen((open) => !open)}>{navigationOpen ? <IconX size={21} /> : <IconMenu2 size={21} />}</button><Link className="mobile-brand" href="/dashboard" aria-label="GVI Ticketing System home"><span className="brand-logo-shell"><Image src={hrLogo} alt="" priority /></span><strong>GVI Ticketing</strong></Link><div className="mobile-account"><button className="mobile-profile-trigger" type="button" onClick={openProfile} aria-label="Open account settings">{user.name}</button><button type="button" onClick={() => void logout()} aria-label="Log out"><IconLogout size={18} /></button></div></header>
     <main className="portal-main">{children}</main>
     <PageHelp pathname={pathname} />
     {profileOpen && <div className="modal-backdrop account-dialog-backdrop" onMouseDown={closeProfile}><section className="modal account-dialog" role="dialog" aria-modal="true" aria-labelledby="account-dialog-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" aria-label="Close account settings" onClick={closeProfile}><IconX size={21}/></button><header className="account-dialog-header"><span>{user.name.slice(0, 1).toUpperCase()}</span><div><p className="eyebrow">Account settings</p><h2 id="account-dialog-title">{profileEditing ? 'Edit your profile' : user.name}</h2><p>{profileEditing ? 'Update the contact information used by TIC.' : user.email}</p></div></header>{profileError && <div className="alert" role="alert">{profileError}</div>}{profileEditing ? <form onSubmit={(event) => { event.preventDefault(); void saveProfile(); }}><label>Name<input value={profileName} maxLength={200} required autoComplete="name" onChange={(event) => setProfileName(event.target.value)} /></label><label>Email<input type="email" value={profileEmail} maxLength={254} required autoComplete="email" onChange={(event) => setProfileEmail(event.target.value)} /></label><div className="modal-actions"><button className="secondary" type="button" onClick={() => { setProfileEditing(false); setProfileError(''); }}>Cancel</button><button className="primary" type="submit">Save profile</button></div></form> : <><dl className="account-details"><div><dt>Organization</dt><dd>{user.organizationName || user.organizationType?.replaceAll('_', ' ') || 'Not assigned'}</dd></div><div><dt>Active role</dt><dd>{user.role.replaceAll('_', ' ')}</dd></div></dl>{user.roles.length > 1 && <label>Switch active role<select value={user.role} onChange={(event) => void changeActiveRole(event.target.value)}>{user.roles.map((role) => <option value={role} key={role}>{role.replaceAll('_', ' ')}</option>)}</select></label>}<div className="account-dialog-actions">{user.id.startsWith('tic:') && <button className="secondary" type="button" onClick={() => setProfileEditing(true)}>Edit profile</button>}{providerManagesPassword ? <p>Password managed by Microsoft.</p> : <button className="secondary" type="button" onClick={() => { closeProfile(); setPasswordOpen(true); }}>Change password</button>}<button className="account-logout" type="button" onClick={() => void logout()}><IconLogout size={18}/>Log out</button></div></>}</section></div>}

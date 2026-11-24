@@ -1,12 +1,14 @@
 'use client';
 
 import { IconArrowRight, IconBrandWindows, IconEye, IconEyeOff, IconIdBadge2, IconShieldCheck } from '@tabler/icons-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { startMicrosoftSignIn } from '@/features/auth/microsoftSso';
 import { takeSessionMessage } from '@/lib/api';
+import companyLogo from '@/assets/logo/Logo_Blue.png';
 
 type SignInMethod = 'credentials' | 'microsoft';
 
@@ -72,12 +74,13 @@ export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
   return (
     <main className="auth-page">
       <section className="auth-story">
-        <div className="brand light"><span>G</span><div><strong>GVI Ticketing System</strong><small>Employee Services</small></div></div>
+        <div className="auth-company-brand"><Image src={companyLogo} alt="Global Visions Holdings Inc." priority /><span>Employee Services Ticketing</span></div>
         <div><p className="eyebrow">One place for every request</p><h1>Work requests,<br />without the friction.</h1><p>Submit, track, and collaborate on employee services through a secure, transparent workflow.</p></div>
         <div className="trust"><IconShieldCheck size={22} /><span>Enterprise-grade identity and role-based access</span></div>
       </section>
       <section className="auth-panel">
         <div className="auth-card auth-method-card">
+          <Image className="auth-mobile-logo" src={companyLogo} alt="Global Visions Holdings Inc." priority />
           <p className="eyebrow">Welcome</p>
           <h2>{mode === 'register' ? 'Your account is centrally managed' : 'Sign in to your account'}</h2>
           <p>Choose how you access your requests and approvals.</p>

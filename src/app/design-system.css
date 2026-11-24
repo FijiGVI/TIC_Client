@@ -42,6 +42,9 @@ input:hover, select:hover, textarea:hover { border-color: #aebdca; }
 .portal { grid-template-columns: 264px minmax(0, 1fr); }
 .sidebar { padding: 28px 20px 18px; background: linear-gradient(180deg, #102f49 0%, #0c263b 100%); box-shadow: 10px 0 35px rgb(16 42 67 / 7%); }
 .sidebar > .brand { padding-inline: 8px; }
+.brand > .brand-logo-shell,
+.mobile-brand > .brand-logo-shell { display: grid; flex: 0 0 42px; width: 42px; height: 42px; place-items: center; overflow: hidden; border: 1px solid rgb(255 255 255 / 18%); border-radius: 11px; background: #fff; box-shadow: 0 3px 12px rgb(0 0 0 / 12%); }
+.brand-logo-shell img { display: block; width: 34px; height: 34px; object-fit: contain; }
 .sidebar nav { gap: 6px; }
 .sidebar nav a { min-height: 44px; padding: 11px 13px; border: 1px solid transparent; border-radius: 10px; }
 .sidebar nav a:hover { background: rgb(255 255 255 / 7%); border-color: rgb(255 255 255 / 7%); }
@@ -114,6 +117,10 @@ input:hover, select:hover, textarea:hover { border-color: #aebdca; }
 
 .auth-page { background: #fff; }
 .auth-story { position: relative; isolation: isolate; overflow: hidden; background: linear-gradient(145deg, #0a2940, #124867); }
+.auth-company-brand { display: grid; width: fit-content; gap: 8px; }
+.auth-company-brand img { display: block; width: clamp(190px, 20vw, 250px); height: auto; padding: 10px 12px; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px rgb(0 0 0 / 15%); }
+.auth-company-brand span { color: #c1d8e7; font-size: 10px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.auth-mobile-logo { display: none; }
 .auth-story::before, .auth-story::after { position: absolute; z-index: -1; border-radius: 50%; content: ''; filter: blur(2px); }
 .auth-story::before { width: 420px; height: 420px; right: -180px; top: -150px; background: rgb(44 177 161 / 16%); }
 .auth-story::after { width: 360px; height: 360px; left: -150px; bottom: -170px; background: rgb(23 105 170 / 22%); }
@@ -147,7 +154,8 @@ input:hover, select:hover, textarea:hover { border-color: #aebdca; }
   .portal { display: block; padding-top: calc(62px + env(safe-area-inset-top)); }
   .mobile-header { position: fixed; z-index: 30; top: 0; left: 0; display: flex; width: 100%; height: calc(62px + env(safe-area-inset-top)); align-items: center; justify-content: space-between; gap: 16px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--line); background: rgb(255 255 255 / 92%); box-shadow: 0 3px 14px rgb(16 42 67 / 6%); backdrop-filter: blur(14px); }
   .mobile-brand { display: flex; align-items: center; gap: 8px; }
-  .mobile-brand > span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 9px; background: linear-gradient(140deg, #1d79b9, #12a291); color: #fff; font-family: var(--font-display); font-weight: 800; }
+  .mobile-brand > .brand-logo-shell { flex-basis: 34px; width: 34px; height: 34px; border-color: var(--line); box-shadow: none; }
+  .mobile-brand > .brand-logo-shell img { width: 28px; height: 28px; }
   .mobile-brand strong { font-family: var(--font-display); }
   .mobile-account { display: flex; min-width: 0; align-items: center; gap: 8px; }
   .mobile-account > span { max-width: 150px; overflow: hidden; color: var(--muted); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
@@ -163,6 +171,7 @@ input:hover, select:hover, textarea:hover { border-color: #aebdca; }
   .request-composer > aside button { box-shadow: 0 1px 3px rgb(16 42 67 / 6%); }
   .modal { border-radius: 20px 20px 0 0; }
   .auth-card { padding: 0; }
+  .auth-mobile-logo { display: block; width: 180px; height: auto; margin: 0 0 28px; }
   .user-edit-fields { grid-template-columns: 1fr; }
   .user-actions { justify-content: flex-start; flex-wrap: wrap; }
 }

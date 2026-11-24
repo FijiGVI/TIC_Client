@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { AuthProvider } from "@/features/auth/AuthProvider";
+import hrLogo from "@/assets/logo/Logo_HR.png";
 import "./globals.css";
 import "./polish.css";
 import "./responsive.css";
@@ -20,6 +21,11 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "GVI Ticketing System",
   description: "Secure employee service request portal",
+  icons: {
+    icon: [{ url: hrLogo.src, type: "image/png" }],
+    shortcut: [{ url: hrLogo.src, type: "image/png" }],
+    apple: [{ url: hrLogo.src, type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {

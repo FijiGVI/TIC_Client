@@ -231,6 +231,13 @@
 .builder-modal-heading { display: flex; flex: none; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px 18px; border-bottom: 1px solid var(--line); }
 .builder-modal-heading h2,.builder-modal-heading p { margin-bottom: 0; }
 .builder-modal-heading button { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; background: #f1f4f7; color: var(--ink); }
+.workflow-modal-tabs { display: flex; flex: none; align-items: flex-end; gap: 8px; padding: 10px 24px 0; overflow-x: auto; border-bottom: 1px solid var(--line); background: #f5f7fa; scrollbar-width: thin; }
+.workflow-modal-tabs > div { display: flex; min-width: max-content; align-items: flex-end; gap: 4px; }
+.workflow-modal-tabs button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; border: 1px solid #d6dee6; border-bottom: 0; border-radius: 10px 10px 0 0; background: #e9eef3; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.workflow-modal-tabs button > span { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: rgb(255 255 255 / 75%); color: var(--blue); font-size: 10px; }
+.workflow-modal-tabs button.active { position: relative; z-index: 1; margin-bottom: -1px; padding-bottom: 10px; background: #fff; color: var(--ink); }
+.workflow-modal-tabs .add-workflow-tab { min-width: max-content; border-style: dashed; background: #fff; color: var(--blue); }
+.workflow-modal-tabs .add-workflow-tab:hover { background: #edf5fb; }
 .builder-modal-body { min-height: 0; padding: 22px 24px; overflow-y: auto; overscroll-behavior: contain; }
 .builder-config-modal .field-editor > article { margin: 0; border: 0; box-shadow: none; }
 .builder-modal-footer { display: flex; flex: none; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--line); background: #fff; }

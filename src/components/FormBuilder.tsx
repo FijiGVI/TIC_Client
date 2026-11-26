@@ -1240,6 +1240,12 @@ export function FormBuilder() {
                 {editingStepIndex !== null && draft.workflowSteps[editingStepIndex] && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => setEditingStepIndex(null)}>
                   <section className="modal builder-config-modal" role="dialog" aria-modal="true" aria-labelledby="step-editor-title" onMouseDown={(event) => event.stopPropagation()}>
                     <header className="builder-modal-heading"><div><p className="eyebrow">Approval workflow</p><h2 id="step-editor-title">Edit {draft.workflowSteps[editingStepIndex].name || `Step ${editingStepIndex + 1}`}</h2></div><button type="button" aria-label="Close step editor" onClick={() => setEditingStepIndex(null)}><IconX size={20}/></button></header>
+                    <nav className="workflow-modal-tabs" aria-label="Workflow step editor tabs">
+                      <div role="tablist" aria-label="Workflow steps">
+                        {draft.workflowSteps.map((workflowStep, workflowStepIndex) => <button type="button" role="tab" aria-selected={editingStepIndex === workflowStepIndex} className={editingStepIndex === workflowStepIndex ? "active" : ""} key={workflowStep.id} onClick={() => openStepEditor(workflowStepIndex)}><span>{workflowStepIndex + 1}</span><strong>{workflowStep.name || `Step ${workflowStepIndex + 1}`}</strong></button>)}
+                      </div>
+                      <button type="button" className="add-workflow-tab" onClick={addStep}><IconPlus size={16}/>Add step</button>
+                    </nav>
                     <div className="builder-modal-body"><div className="field-editor improved">
                   {draft.workflowSteps.map((step, index) => (
                     index !== editingStepIndex ? null :

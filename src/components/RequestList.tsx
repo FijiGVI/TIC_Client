@@ -6,8 +6,10 @@ import {
   IconFilePlus,
   IconDownload,
   IconEdit,
+  IconEye,
   IconRefresh,
   IconSearch,
+  IconX,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicFormField, EditRequestModal, NewRequestModal } from "@/components/NewRequestModal";
@@ -21,6 +23,11 @@ import "./RequestList.css";
 
 type Filter = "all" | "open" | "completed";
 const statusLabel = (status: string) => status.replaceAll("_", " ");
+const dueLabel = (value: string, now: number) => {
+  const dueAt = new Date(value);
+  const overdue = dueAt.getTime() < now;
+  return `${overdue ? "Overdue since" : "Due"} ${dueAt.toLocaleString()}`;
+};
 const initialMeta: PaginationMeta = { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 const roleLabels: Record<string, string> = {
   admin: "Administrator",
@@ -50,6 +57,8 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
   const [editing, setEditing] = useState<ServiceRequest | null>(null);
   const [stepResponses, setStepResponses] = useState<Record<string, unknown>>({});
   const [decisionRemarks, setDecisionRemarks] = useState("");
+  const [clock, setClock] = useState(() => Date.now());
+  const [pdfPreview, setPdfPreview] = useState<{ name: string; url: string } | null>(null);
   const selectedStep = selected?.currentStep === null || selected?.currentStep === undefined ? null : selected.formSnapshot.workflowSteps[selected.currentStep];
   const allSelectedStepFields = useMemo(() => selectedStep && selected
     ? selected.formSnapshot.fields.filter((field) => field.stepId === selectedStep.id)
@@ -100,6 +109,14 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
       setError(reason instanceof Error ? reason.message : 'Unable to download attachment');
     }
   };
+  const previewPdf = async (id: string, name: string) => {
+    try {
+      const result = await api.get<{ data: { downloadUrl: string } }>(`/uploads/${id}/download`);
+      setPdfPreview({ name, url: result.data.downloadUrl });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to preview PDF');
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,6 +146,11 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
   }, [createdFrom, createdTo, departmentId, filter, managed, page, query]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!managed) return;
     const timer = window.setTimeout(() => void api.get<{ data: DepartmentOption[] }>("/departments").then((response) => setDepartments(response.data)).catch(() => undefined), 0);
     return () => window.clearTimeout(timer);
@@ -141,6 +163,10 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
 
   const act = async (action: "approve" | "reject") => {
     if (!selected || acting) return;
+    const message = action === "reject"
+      ? "Reject this request? This closes the workflow and cannot be undone."
+      : "Complete this workflow step? Your decision will be recorded in the audit history.";
+    if (!window.confirm(message)) return;
     setActing(true);
     setError("");
     try {
@@ -153,6 +179,21 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
       setError(
         reason instanceof Error ? reason.message : "Unable to update request",
       );
+    } finally {
+      setActing(false);
+    }
+  };
+  const cancelRequest = async () => {
+    if (!selected || acting || selected.requesterActorId !== user?.id) return;
+    if (!window.confirm("Cancel this request? The workflow will close and this cannot be undone.")) return;
+    setActing(true);
+    setError("");
+    try {
+      await api.patch(`/requests/${selected.id}`, { status: "cancelled", remarks: "Cancelled by requester" });
+      setSelected(null);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to cancel request");
     } finally {
       setActing(false);
     }
@@ -354,6 +395,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                   <small>Current workflow step</small>
                   <strong>{selectedStep.name}</strong>
                   <span>Step {(selected.currentStep ?? 0) + 1} of {selected.formSnapshot.workflowSteps.length}</span>
+                  {selected.currentStepDueAt && <span className={new Date(selected.currentStepDueAt).getTime() < clock ? "sla-overdue" : ""}>{dueLabel(selected.currentStepDueAt, clock)}</span>}
                   <span>
                     Assigned to {(selectedStep.allowedRoles || [selectedStep.approverRole])
                       .map((role) => roleLabels[role] || role.replaceAll("_", " "))
@@ -384,7 +426,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                   <dt>
                     {field?.label || key}
                   </dt>
-                  <dd>{isPreviewable ? <figure className={`request-detail-upload ${field.type === 'signature' ? 'signature' : ''}`}><ReferenceImage uploadId={value as string} alt={`${field.label} submitted with this request`}/><figcaption>{field.type === 'signature' ? 'Submitted signature' : 'Submitted image'} · Select to view full size</figcaption></figure> : attachment ? <button type="button" className="secondary compact" onClick={() => void downloadAttachment(attachment.id)}><IconDownload size={15}/>{attachment.originalName}</button> : String(value)}</dd>
+                  <dd>{isPreviewable ? <figure className={`request-detail-upload ${field.type === 'signature' ? 'signature' : ''}`}><ReferenceImage uploadId={value as string} alt={`${field.label} submitted with this request`}/><figcaption>{field.type === 'signature' ? 'Submitted signature' : 'Submitted image'} · Select to view full size</figcaption></figure> : attachment ? <span className="attachment-actions">{field?.type === "pdf" && <button type="button" className="secondary compact" onClick={() => void previewPdf(attachment.id, attachment.originalName)}><IconEye size={15}/>Preview PDF</button>}<button type="button" className="secondary compact" onClick={() => void downloadAttachment(attachment.id)}><IconDownload size={15}/>{attachment.originalName}</button></span> : String(value)}</dd>
                 </div>;
               })}
             </dl>
@@ -439,9 +481,11 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
                 </div>
               </div>
             )}
+            {selected.requesterActorId === user?.id && ["submitted", "in_review"].includes(selected.status) && <div className="request-cancel-action"><button type="button" className="danger" disabled={acting} onClick={() => void cancelRequest()}>Cancel request</button><small>Cancellation closes the workflow but keeps the request and its history visible.</small></div>}
           </section>
         </div>
       )}
+      {pdfPreview && <div className="modal-backdrop pdf-preview-backdrop" onMouseDown={() => setPdfPreview(null)}><section className="modal pdf-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pdf-preview-title" onMouseDown={(event) => event.stopPropagation()}><header><div><p className="eyebrow">Document preview</p><h2 id="pdf-preview-title">{pdfPreview.name}</h2></div><button type="button" className="modal-close" aria-label="Close PDF preview" onClick={() => setPdfPreview(null)}><IconX size={20}/></button></header><iframe title={`Preview of ${pdfPreview.name}`} src={pdfPreview.url}/><footer><button type="button" className="secondary" onClick={() => setPdfPreview(null)}>Close</button></footer></section></div>}
       {createOpen && <NewRequestModal onClose={() => setCreateOpen(false)} onSubmitted={() => void load()} />}
       {editing && <EditRequestModal request={editing} onClose={() => setEditing(null)} onSaved={() => void load()} />}
     </>

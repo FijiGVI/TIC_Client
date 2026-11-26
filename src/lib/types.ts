@@ -76,6 +76,7 @@ export type WorkflowStep = {
   allowedRoles: Role[];
   approvalMode: "sequential" | "parallel";
   approvalRule: "any" | "all";
+  slaMinutes: number;
   condition: FieldCondition;
 };
 export type RequestForm = {
@@ -158,6 +159,7 @@ export type ServiceRequest = {
     requiredRoles: Role[];
     approvals: Array<{ actorId: string; actorName: string; role: Role; approvedAt: string }>;
   } | null;
+  currentStepDueAt?: string | null;
   remarks: string | null;
   completedAt: string | null;
   createdAt: string;

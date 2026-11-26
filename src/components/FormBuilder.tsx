@@ -105,7 +105,7 @@ const normalizeCondition = (condition?: LegacyCondition): FieldCondition => {
 const normalizeFormConditions = (form: RequestForm): RequestForm => ({
   ...form,
   fields: form.fields.map((field) => ({ ...field, condition: normalizeCondition(field.condition) })),
-  workflowSteps: form.workflowSteps.map((step) => ({ ...step, condition: normalizeCondition(step.condition) })),
+  workflowSteps: form.workflowSteps.map((step) => ({ ...step, slaMinutes: step.slaMinutes || 1440, condition: normalizeCondition(step.condition) })),
 });
 const nextBuilderId = (prefix: string, existingIds: string[]): string => {
   let sequence = existingIds.length + 1;
@@ -303,7 +303,7 @@ export function FormBuilder() {
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null);
   const [deleteFieldTarget, setDeleteFieldTarget] = useState<{ index: number; label: string } | null>(null);
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
-  const [builderTab, setBuilderTab] = useState<"fields" | "steps">("fields");
+  const [builderTab, setBuilderTab] = useState<"fields" | "steps">("steps");
   const [duplicateTarget, setDuplicateTarget] = useState<{ kind: "field" | "step"; index: number } | null>(null);
   const [duplicateCount, setDuplicateCount] = useState(1);
   const [draftStatus, setDraftStatus] = useState("");
@@ -317,6 +317,18 @@ export function FormBuilder() {
   const addFieldButtonRef = useRef<HTMLButtonElement>(null);
   const addStepButtonRef = useRef<HTMLButtonElement>(null);
   const [topBuilderActionVisible, setTopBuilderActionVisible] = useState(true);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(blank()));
+  const isDirty = JSON.stringify(draft) !== savedSnapshot;
+  const selectDraft = (nextDraft: Draft, status = "") => {
+    if (isDirty && !window.confirm("You have unsaved form changes. Discard them and continue?")) return;
+    setDraft(nextDraft);
+    setSavedSnapshot(JSON.stringify(nextDraft));
+    setDraftStatus(status);
+    setPreview(false);
+    setBuilderTab("steps");
+    setEditingFieldIndex(null);
+    setEditingStepIndex(null);
+  };
   const load = useCallback(async () => {
     try {
       const [formResult, roleResult, groupResult] = await Promise.all([
@@ -368,6 +380,14 @@ export function FormBuilder() {
     return () => window.clearTimeout(timer);
   }, [draft]);
   useEffect(() => {
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (!isDirty) return;
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [isDirty]);
+  useEffect(() => {
     const target = builderTab === "fields" ? addFieldButtonRef.current : addStepButtonRef.current;
     if (!target) return;
     const observer = new IntersectionObserver(([entry]) => setTopBuilderActionVisible(entry.isIntersecting), { threshold: 0.2 });
@@ -408,7 +428,31 @@ export function FormBuilder() {
           : field,
       ),
     }));
-  const addField = () => {
+  const changeBuilderTab = (nextTab: "fields" | "steps") => {
+    if (nextTab === builderTab) return;
+    const incompleteField = draft.fields.findIndex((field) => !field.label.trim());
+    const incompleteStep = draft.workflowSteps.findIndex((step) => !step.name.trim() || !Number.isInteger(step.slaMinutes));
+    if (builderTab === "fields" && incompleteField >= 0) {
+      window.alert("Finish the current field before moving to the workflow.");
+      setExpandedFieldIndex(incompleteField);
+      return;
+    }
+    if (builderTab === "steps" && incompleteStep >= 0) {
+      window.alert("Finish the current workflow step, including its SLA, before opening the field list.");
+      setEditingStepIndex(incompleteStep);
+      return;
+    }
+    setBuilderTab(nextTab);
+  };
+  const addField = (stepId: string | null = null, keepWorkflowOpen = false) => {
+    const incompleteField = draft.fields.findIndex((field) => !field.label.trim());
+    if (incompleteField >= 0) {
+      window.alert("Finish the current field before adding another field.");
+      setBuilderTab("fields");
+      setExpandedFieldIndex(incompleteField);
+      setEditingFieldIndex(incompleteField);
+      return;
+    }
     const nextIndex = draft.fields.length;
     const id = nextBuilderId("field", draft.fields.map((field) => field.id));
     setDraft((current) => ({
@@ -417,23 +461,35 @@ export function FormBuilder() {
         ...current.fields,
         {
           id,
-          label: "New field",
+          label: "",
           description: "",
           type: "text",
           required: false,
           defaultValue: null,
           placeholder: "",
           options: [],
-          stepId: null,
+          stepId,
           condition: { logic: "and", groups: [] },
           validation: {},
         },
       ],
     }));
     setExpandedFieldIndex(nextIndex);
-    setBuilderTab("fields");
+    if (keepWorkflowOpen) {
+      setBuilderTab("steps");
+    } else {
+      setBuilderTab("fields");
+      setEditingFieldIndex(nextIndex);
+    }
   };
   const addStep = () => {
+    const incompleteStep = draft.workflowSteps.findIndex((step) => !step.name.trim() || !Number.isInteger(step.slaMinutes));
+    if (incompleteStep >= 0) {
+      window.alert("Finish the current workflow step, including its SLA, before adding another step.");
+      setBuilderTab("steps");
+      setEditingStepIndex(incompleteStep);
+      return;
+    }
     const nextIndex = draft.workflowSteps.length;
     const id = nextBuilderId("step", draft.workflowSteps.map((step) => step.id));
     setDraft((current) => ({
@@ -442,13 +498,14 @@ export function FormBuilder() {
         ...current.workflowSteps,
         {
           id,
-          name: "Approval",
+          name: "",
           instructions: "",
           approverRole: "approver",
           approverUserId: null,
           allowedRoles: ["approver"],
           approvalMode: "sequential",
           approvalRule: "all",
+          slaMinutes: 1440,
           condition: { logic: "and", groups: [] },
         },
       ],
@@ -541,6 +598,28 @@ export function FormBuilder() {
   };
   const save = async (event?: FormEvent) => {
     event?.preventDefault();
+    if (!draft.name.trim() || !draft.groupId || !draft.allowedRequesterRoles.length) {
+      setError("Form name, group, and at least one Available to role are required.");
+      return;
+    }
+    const incompleteFieldIndex = draft.fields.findIndex((field) =>
+      !field.label.trim() || (["select", "radio"].includes(field.type) && field.options.length === 0));
+    if (incompleteFieldIndex >= 0) {
+      setBuilderTab("fields");
+      setExpandedFieldIndex(incompleteFieldIndex);
+      setEditingFieldIndex(incompleteFieldIndex);
+      setError("Every field needs a label. Select and radio fields also need at least one option.");
+      return;
+    }
+    const invalidStepIndex = draft.workflowSteps.findIndex((step) =>
+      !step.name.trim() || !(step.allowedRoles?.length || step.approverRole) ||
+      !Number.isInteger(step.slaMinutes) || step.slaMinutes < 1 || step.slaMinutes > 525600);
+    if (invalidStepIndex >= 0) {
+      setBuilderTab("steps");
+      setEditingStepIndex(invalidStepIndex);
+      setError("Every workflow step needs a name, an assigned role, and an SLA between 1 minute and 365 days.");
+      return;
+    }
     const invalidFieldIndex = draft.fields.findIndex((field) => fieldValidationIssue(field));
     if (invalidFieldIndex >= 0) {
       const invalidField = draft.fields[invalidFieldIndex];
@@ -556,7 +635,9 @@ export function FormBuilder() {
       if ("id" in draft) await api.put(`/forms/${draft.id}`, payload);
       else await api.post("/forms", payload);
       window.localStorage.removeItem("tic.form-builder.draft");
-      setDraft(blank());
+      const emptyDraft = blank();
+      setDraft(emptyDraft);
+      setSavedSnapshot(JSON.stringify(emptyDraft));
       setDraftStatus("Saved");
       await load();
     } catch (reason) {
@@ -628,7 +709,7 @@ export function FormBuilder() {
           <h1>Form builder</h1>
           <p>Design, preview, assign, and manage employee service forms.</p>
         </div>
-        <button className="secondary" onClick={() => setDraft(blank())}>
+        <button className="secondary" onClick={() => selectDraft(blank(), "New form")}>
           <IconPlus size={18} />
           New form
         </button>
@@ -647,7 +728,7 @@ export function FormBuilder() {
                 "id" in draft && draft.id === form.id ? "selected" : ""
               }
               key={form.id}
-              onClick={() => setDraft(form)}
+              onClick={() => selectDraft(form)}
             >
               <strong>{form.name}</strong>
               <small>
@@ -669,12 +750,12 @@ export function FormBuilder() {
             <label>
               Select a form
               <select value={"id" in draft ? String(draft.id) : "new"} onChange={(event) => {
-                if (event.target.value === "new") { setDraft(blank()); setDraftStatus("New form"); return; }
+                if (event.target.value === "new") { selectDraft(blank(), "New form"); return; }
                 const selected = forms.find((form) => String(form.id) === event.target.value);
-                if (selected) { setDraft(selected); setDraftStatus(""); setPreview(false); }
+                if (selected) selectDraft(selected);
               }}>
                 <option value="new">New form</option>
-                {forms.map((form) => <option key={form.id} value={String(form.id)}>{form.name} ({form.active ? "Active" : "Inactive"})</option>)}
+                {[...new Set(forms.map((form) => form.groupName))].map((groupName) => <optgroup key={groupName} label={groupName}>{forms.filter((form) => form.groupName === groupName).map((form) => <option key={form.id} value={String(form.id)}>{form.name} · {form.active ? "Active" : "Inactive"} · Available to: {form.allowedRequesterRoles.map(previewRoleLabel).join(", ")}</option>)}</optgroup>)}
               </select>
               <small>Choose a form to view its information and edit its contents.</small>
             </label>
@@ -792,6 +873,7 @@ export function FormBuilder() {
                 </div>
                 <fieldset className="audience">
                   <legend>Available to</legend>
+                  <p className="builder-field-hint">Controls which roles see this form in the New Request service dropdown. Workflow approvers are configured separately per step.</p>
                   {roles.map((role) => (
                     <label className="check" key={role.value}>
                       <input
@@ -815,11 +897,11 @@ export function FormBuilder() {
                   ))}
                 </fieldset>
                 <div className="builder-workspace">
-                  <aside className="builder-step-rail" aria-label="Workflow steps"><header><strong>Steps ({draft.workflowSteps.length})</strong><button type="button" className="primary compact" onClick={addStep}><IconPlus size={14}/>Add</button></header><button type="button" className={!draft.workflowSteps.length ? "active" : ""} onClick={() => setBuilderTab("fields")}><span>0</span><span><strong>Request details</strong><small>{draft.fields.filter((field) => !field.stepId).length} fields</small></span></button>{draft.workflowSteps.map((step, index) => <button type="button" key={step.id} className={editingStepIndex === index ? "active" : ""} onClick={() => { setBuilderTab("steps"); setEditingStepIndex(index); }}><span>{index + 1}</span><span><strong>{step.name || `Step ${index + 1}`}</strong><small>{draft.fields.filter((field) => field.stepId === step.id).length} fields{step.condition?.groups?.length ? " · Conditional" : ""}</small></span></button>)}</aside>
+                  <aside className="builder-step-rail" aria-label="Workflow wizard"><header><strong>Wizard ({draft.workflowSteps.length + 1} steps)</strong><button type="button" className="primary compact" onClick={addStep}><IconPlus size={14}/>Add</button></header><button type="button" className={builderTab === "fields" ? "active" : ""} onClick={() => setBuilderTab("fields")}><span>1</span><span><strong>Requester submission</strong><small>{draft.fields.filter((field) => !field.stepId).length} fields · Default first step</small></span></button>{draft.workflowSteps.map((step, index) => <button type="button" key={step.id} className={editingStepIndex === index ? "active" : ""} onClick={() => { setBuilderTab("steps"); setEditingStepIndex(index); }}><span>{index + 2}</span><span><strong>{step.name || `Workflow step ${index + 1}`}</strong><small>{draft.fields.filter((field) => field.stepId === step.id).length} fields · SLA {step.slaMinutes || 1440} min{step.condition?.groups?.length ? " · Conditional" : ""}</small></span></button>)}</aside>
                   <section className="builder-workspace-main">
                 <div className="builder-tabs" role="tablist" aria-label="Form configuration">
-                  <button type="button" role="tab" aria-selected={builderTab === "fields"} className={builderTab === "fields" ? "active" : ""} onClick={() => setBuilderTab("fields")}>Fields <span>{draft.fields.length}</span></button>
-                  <button type="button" role="tab" aria-selected={builderTab === "steps"} className={builderTab === "steps" ? "active" : ""} onClick={() => setBuilderTab("steps")}>Workflow steps <span>{draft.workflowSteps.length}</span></button>
+                  <button type="button" role="tab" aria-selected={builderTab === "steps"} className={builderTab === "steps" ? "active" : ""} onClick={() => changeBuilderTab("steps")}>Workflow steps <span>{draft.workflowSteps.length}</span></button>
+                  <button type="button" role="tab" aria-selected={builderTab === "fields"} className={builderTab === "fields" ? "active" : ""} onClick={() => changeBuilderTab("fields")}>Field list <span>{draft.fields.length}</span></button>
                 </div>
                 {builderTab === "fields" && <>
                 <div className="section-title">
@@ -827,7 +909,7 @@ export function FormBuilder() {
                     <h3>Form fields</h3>
                     <p>Fields appear in this order to requesters.</p>
                   </div>
-                  <button ref={addFieldButtonRef} type="button" className="primary compact" onClick={addField}><IconPlus size={15}/>Add field</button>
+                  <button ref={addFieldButtonRef} type="button" className="primary compact" onClick={() => addField(null)}><IconPlus size={15}/>Add field</button>
                 </div>
                 <div className="builder-accordion">
                   {draft.fields.map((field, index) => {
@@ -1082,7 +1164,7 @@ export function FormBuilder() {
                     const stepRoles = step.allowedRoles?.length ? step.allowedRoles : [step.approverRole];
                     return <details key={step.id}>
                       <summary>
-                        <span className="builder-item-number">{index + 1}</span>
+                        <span className="builder-item-number">{index + 2}</span>
                         <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small><span className="builder-badge">Step {index + 1}</span><span>{stepRoles.map(previewRoleLabel).join(", ")}</span><span className="builder-badge">{step.approvalMode === "parallel" ? `Parallel · ${step.approvalRule === "any" ? "any" : "all"}` : "Sequential"}</span>{Boolean(step.condition?.groups?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
                         <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditingStepIndex(index); }}>Edit</button></span>
                       </summary>
@@ -1117,6 +1199,7 @@ export function FormBuilder() {
                         <div className="step-role-list"><small>Roles allowed to complete this step</small>{roles.map((role)=>{const checked=(step.allowedRoles||[step.approverRole]).includes(role.value);return <label className="check" key={role.value}><input type="checkbox" checked={checked} onChange={(event)=>{const current=step.allowedRoles||[step.approverRole];const allowedRoles=event.target.checked?[...new Set([...current,role.value])]:current.filter((value)=>value!==role.value);if(allowedRoles.length)patchStep(index,{allowedRoles,approverRole:allowedRoles[0]});}}/>{role.label}</label>;})}</div>
                         <label>Approval mode<select value={step.approvalMode || "sequential"} onChange={(event)=>patchStep(index,{approvalMode:event.target.value as "sequential"|"parallel"})}><option value="sequential">One eligible approver</option><option value="parallel">Multiple approver roles</option></select></label>
                         {(step.approvalMode || "sequential") === "parallel" && <label>Completion rule<select value={step.approvalRule || "all"} onChange={(event)=>patchStep(index,{approvalRule:event.target.value as "any"|"all"})}><option value="all">All selected roles must approve</option><option value="any">Any selected role may approve</option></select></label>}
+                        <label>Step SLA (minutes)<input type="number" min="1" max="525600" step="1" required value={step.slaMinutes || ""} onChange={(event) => patchStep(index, { slaMinutes: event.target.valueAsNumber })}/><small>Maximum elapsed time for this step. For example, 1440 minutes is one day.</small></label>
                         <button
                           type="button"
                           aria-label="Remove workflow step"
@@ -1145,6 +1228,11 @@ export function FormBuilder() {
                         />
                       </label>
                       <StepConditionEditor condition={step.condition || { logic: "and", groups: [] }} availableFields={draft.fields.filter((field)=>!field.stepId||draft.workflowSteps.findIndex((candidate)=>candidate.id===field.stepId)<index)} onChange={(condition) => patchStep(index, { condition })}/>
+                      <section className="step-field-editor">
+                        <header><div><h3>Fields completed in this step</h3><p>Create and edit step fields here. They also remain available in the Field List tab.</p></div><button type="button" className="primary compact" onClick={() => addField(step.id, true)}><IconPlus size={15}/>Add field</button></header>
+                        {draft.fields.map((field, fieldIndex) => field.stepId !== step.id ? null : <details key={field.id} open={expandedFieldIndex === fieldIndex} onToggle={(event) => setExpandedFieldIndex(event.currentTarget.open ? fieldIndex : null)}><summary><strong>{field.label || `Untitled field ${fieldIndex + 1}`}</strong><span>{field.type}</span></summary><InlineFieldEditor field={field} index={fieldIndex} fields={draft.fields} workflowSteps={draft.workflowSteps} onPatch={(patch) => patchField(fieldIndex, patch)} onValidationPatch={(patch) => patchFieldValidation(fieldIndex, patch)}/></details>)}
+                        {!draft.fields.some((field) => field.stepId === step.id) && <div className="builder-empty-list">No fields are assigned to this step.</div>}
+                      </section>
                     </article>
                   ))}
                     </div></div>
@@ -1156,7 +1244,7 @@ export function FormBuilder() {
                   <aside className="builder-preview-rail"><header><strong>Live preview</strong></header><p>Test field visibility and workflow steps with editable answers. Preview data is never saved.</p><div><span>{draft.fields.length}</span><small>Fields</small><span>{draft.workflowSteps.length}</span><small>Steps</small></div><button type="button" className="secondary" onClick={() => { setPreviewResponses(initialFieldResponses(draft.fields)); setPreviewStage(0); setPreview(true); }}><IconEye size={16}/>Open preview</button></aside>
                 </div>
                 {!topBuilderActionVisible && <div className="builder-floating-actions" aria-label="Builder actions">
-                  {builderTab === "fields" ? <button type="button" onClick={addField}><IconPlus size={18}/><span>Add field</span></button> : <button type="button" onClick={addStep}><IconPlus size={18}/><span>Add step</span></button>}
+                  {builderTab === "fields" ? <button type="button" onClick={() => addField(null)}><IconPlus size={18}/><span>Add field</span></button> : <button type="button" onClick={addStep}><IconPlus size={18}/><span>Add step</span></button>}
                 </div>}
                 {deleteFieldTarget && <div className="modal-backdrop builder-editor-backdrop" onMouseDown={() => setDeleteFieldTarget(null)}>
                   <section className="modal builder-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-field-title" aria-describedby="delete-field-description" onMouseDown={(event) => event.stopPropagation()}>

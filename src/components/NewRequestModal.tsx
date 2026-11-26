@@ -105,6 +105,11 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
   const requesterFields = useMemo(() => selected?.fields.filter((field) => !field.stepId) || [], [selected]);
   const visibleRequesterFields = useMemo(() => requesterFields.filter((field) => fieldIsVisible(field, responses)), [requesterFields, responses]);
   const groups = useMemo(() => [...new Set(forms.map((form) => form.groupName))], [forms]);
+  const hasEnteredData = Object.values(responses).some((value) => value === true || (value !== null && value !== undefined && String(value).trim() !== ''));
+  const requestClose = () => {
+    if (hasEnteredData && !success && !window.confirm('Discard this request draft and close?')) return;
+    onClose();
+  };
   const setFieldValue = (field: FormField, value: unknown) => {
     idempotencyKeyRef.current = crypto.randomUUID();
     setResponses((current) => ({ ...current, [field.id]: value }));
@@ -126,9 +131,9 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
   };
 
   return (
-    <div className="modal-backdrop" onMouseDown={() => !saving && onClose()}>
+    <div className="modal-backdrop" onMouseDown={() => !saving && requestClose()}>
       <section className="modal new-request-modal" role="dialog" aria-modal="true" aria-labelledby="new-request-title" onMouseDown={(event) => event.stopPropagation()}>
-        <button className="modal-close" type="button" aria-label="Close new request" onClick={onClose}><IconX size={21} /></button>
+        <button className="modal-close" type="button" aria-label="Close new request" onClick={requestClose}><IconX size={21} /></button>
         {success ? (
           <div className="modal-success"><span><IconCheck size={30} /></span><p className="eyebrow">{wasDuplicate ? 'Existing request found' : 'Request received'}</p><h2 id="new-request-title">{wasDuplicate ? 'No duplicate was created.' : 'You’re all set.'}</h2><p>{wasDuplicate ? 'The same request was submitted moments ago, so we kept the original ticket.' : 'We’ll email you as the request progresses.'}</p><strong>{success}</strong><button className="primary" type="button" onClick={onClose}>View my requests</button></div>
         ) : (
@@ -140,7 +145,7 @@ export function NewRequestModal({ onClose, onSubmitted }: { onClose(): void; onS
                 {selected ? (
                   <form id="new-request-form" noValidate onSubmit={submit}>
                     <div className="request-context-grid">
-                      <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { const nextId = event.target.value; const nextForm = forms.find((form) => form.id === nextId); idempotencyKeyRef.current = crypto.randomUUID(); setFormId(nextId); setResponses(initialFieldResponses(nextForm?.fields.filter((field) => !field.stepId) || [])); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
+                      <label className="service-select"><span>Service</span><small>Choose the type of request you want to create.</small><select value={formId} onChange={(event) => { if (hasEnteredData && !window.confirm('Changing the service clears the information already entered. Continue?')) return; const nextId = event.target.value; const nextForm = forms.find((form) => form.id === nextId); idempotencyKeyRef.current = crypto.randomUUID(); setFormId(nextId); setResponses(initialFieldResponses(nextForm?.fields.filter((field) => !field.stepId) || [])); setFieldErrors({}); setError(''); }}>{groups.map((group) => <optgroup label={group} key={group}>{forms.filter((form) => form.groupName === group).map((form) => <option value={form.id} key={form.id}>{form.name}</option>)}</optgroup>)}</select></label>
                       <label><span>Department</span><small>Automatically assigned from your user profile.</small><select required disabled value={departmentId}><option value="">Department not configured</option>{departments.map((department) => <option value={department.id} key={department.id}>{department.title ? `${department.title} — ` : ''}{department.businessUnit}</option>)}</select></label>
                       <div className="selected-service-summary"><p className="eyebrow">{selected.groupName}</p><h3>{selected.name}</h3><p>{selected.description}</p></div>
                     </div>

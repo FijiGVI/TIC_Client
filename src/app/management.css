@@ -234,6 +234,8 @@
 .builder-modal-body { min-height: 0; padding: 22px 24px; overflow-y: auto; overscroll-behavior: contain; }
 .builder-config-modal .field-editor > article { margin: 0; border: 0; box-shadow: none; }
 .builder-modal-footer { display: flex; flex: none; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--line); background: #fff; }
+.builder-modal-footer.with-secondary { justify-content: space-between; gap: 12px; }
+.builder-modal-footer button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .builder-modal-footer .primary { min-width: 120px; }
 .duplicate-builder-modal { position: relative; width: min(480px, calc(100vw - 32px)); max-width: none; }
 .duplicate-builder-modal > p:not(.eyebrow) { color: var(--muted); line-height: 1.5; }
@@ -601,7 +603,7 @@
   grid-template-columns: 36px minmax(0, 1fr) 40px;
   align-items: start;
 }
-.workflow-config-row > input { grid-column: 2; }
+.workflow-config-row > .step-name-field { grid-column: 2; }
 .workflow-config-row > .step-role-list {
   grid-column: 2 / 4;
   width: 100%;
@@ -614,6 +616,12 @@
 .workflow-config-row > label input,
 .workflow-config-row > label select { width: 100%; min-width: 0; }
 .workflow-config-row > label small { max-width: 72ch; color: var(--muted); line-height: 1.45; }
+.workflow-config-row > .sla-duration-field { grid-column: 2 / 4; width: 100%; min-width: 0; margin: 0; padding: 0; border: 0; }
+.sla-duration-field legend { margin-bottom: 8px; padding: 0; color: var(--ink); font-weight: 700; }
+.sla-duration-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sla-duration-grid label { min-width: 0; margin: 0; }
+.sla-duration-grid input { width: 100%; min-width: 0; }
+.sla-duration-field > small { display: block; margin-top: 8px; color: var(--muted); line-height: 1.45; }
 .workflow-config-row > button {
   grid-column: 3;
   grid-row: 1;
@@ -735,6 +743,7 @@
   .field-card-header { margin: -12px -12px 14px; padding: 11px 12px; }
   .field-settings-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .step-role-list { grid-template-columns: 1fr; }
+  .sla-duration-grid { grid-template-columns: 1fr; }
   .step-role-list > small { grid-column: 1; }
   .step-condition-editor { margin-inline: -2px; padding: 14px; }
   .step-condition-editor > div:first-child { align-items: stretch; }

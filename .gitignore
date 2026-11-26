@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+/.edge-sso-profile/
 
 # generated credential handover files
 /HR-Service-Hub-TIC-Accounts.xlsx

@@ -324,6 +324,10 @@
 .step-field-editor details { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .step-field-editor summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; cursor: pointer; }
 .step-field-editor summary span { color: var(--muted); font-size: 11px; text-transform: capitalize; }
+.step-field-summary-meta { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.step-field-summary-meta > span { padding: 4px 8px; border-radius: 999px; background: #f1f5f8; }
+.step-field-summary-meta > span:last-child { background: #eaf2fb; color: var(--blue); font-weight: 800; text-transform: none; }
+.step-field-editor .inline-field-editor { border-top: 1px solid var(--line); }
 .attachment-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .request-cancel-action { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .request-cancel-action small { max-width: 44ch; color: var(--muted); }

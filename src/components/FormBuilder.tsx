@@ -319,6 +319,14 @@ export function FormBuilder() {
   const [topBuilderActionVisible, setTopBuilderActionVisible] = useState(true);
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(blank()));
   const isDirty = JSON.stringify(draft) !== savedSnapshot;
+  const openStepEditor = (stepIndex: number) => {
+    const step = draft.workflowSteps[stepIndex];
+    if (!step) return;
+    setBuilderTab("steps");
+    setEditingStepIndex(stepIndex);
+    const firstAssignedFieldIndex = draft.fields.findIndex((field) => field.stepId === step.id);
+    setExpandedFieldIndex(firstAssignedFieldIndex >= 0 ? firstAssignedFieldIndex : null);
+  };
   const selectDraft = (nextDraft: Draft, status = "") => {
     if (isDirty && !window.confirm("You have unsaved form changes. Discard them and continue?")) return;
     setDraft(nextDraft);
@@ -439,7 +447,7 @@ export function FormBuilder() {
     }
     if (builderTab === "steps" && incompleteStep >= 0) {
       window.alert("Finish the current workflow step, including its SLA, before opening the field list.");
-      setEditingStepIndex(incompleteStep);
+      openStepEditor(incompleteStep);
       return;
     }
     setBuilderTab(nextTab);
@@ -487,7 +495,7 @@ export function FormBuilder() {
     if (incompleteStep >= 0) {
       window.alert("Finish the current workflow step, including its SLA, before adding another step.");
       setBuilderTab("steps");
-      setEditingStepIndex(incompleteStep);
+      openStepEditor(incompleteStep);
       return;
     }
     const nextIndex = draft.workflowSteps.length;
@@ -616,7 +624,7 @@ export function FormBuilder() {
       !Number.isInteger(step.slaMinutes) || step.slaMinutes < 1 || step.slaMinutes > 525600);
     if (invalidStepIndex >= 0) {
       setBuilderTab("steps");
-      setEditingStepIndex(invalidStepIndex);
+      openStepEditor(invalidStepIndex);
       setError("Every workflow step needs a name, an assigned role, and an SLA between 1 minute and 365 days.");
       return;
     }
@@ -897,7 +905,7 @@ export function FormBuilder() {
                   ))}
                 </fieldset>
                 <div className="builder-workspace">
-                  <aside className="builder-step-rail" aria-label="Workflow wizard"><header><strong>Wizard ({draft.workflowSteps.length + 1} steps)</strong><button type="button" className="primary compact" onClick={addStep}><IconPlus size={14}/>Add</button></header><button type="button" className={builderTab === "fields" ? "active" : ""} onClick={() => setBuilderTab("fields")}><span>1</span><span><strong>Requester submission</strong><small>{draft.fields.filter((field) => !field.stepId).length} fields · Default first step</small></span></button>{draft.workflowSteps.map((step, index) => <button type="button" key={step.id} className={editingStepIndex === index ? "active" : ""} onClick={() => { setBuilderTab("steps"); setEditingStepIndex(index); }}><span>{index + 2}</span><span><strong>{step.name || `Workflow step ${index + 1}`}</strong><small>{draft.fields.filter((field) => field.stepId === step.id).length} fields · SLA {step.slaMinutes || 1440} min{step.condition?.groups?.length ? " · Conditional" : ""}</small></span></button>)}</aside>
+                  <aside className="builder-step-rail" aria-label="Workflow wizard"><header><strong>Wizard ({draft.workflowSteps.length + 1} steps)</strong><button type="button" className="primary compact" onClick={addStep}><IconPlus size={14}/>Add</button></header><button type="button" className={builderTab === "fields" ? "active" : ""} onClick={() => setBuilderTab("fields")}><span>1</span><span><strong>Requester submission</strong><small>{draft.fields.filter((field) => !field.stepId).length} fields · Default first step</small></span></button>{draft.workflowSteps.map((step, index) => <button type="button" key={step.id} className={editingStepIndex === index ? "active" : ""} onClick={() => openStepEditor(index)}><span>{index + 2}</span><span><strong>{step.name || `Workflow step ${index + 1}`}</strong><small>{draft.fields.filter((field) => field.stepId === step.id).length} fields · SLA {step.slaMinutes || 1440} min{step.condition?.groups?.length ? " · Conditional" : ""}</small></span></button>)}</aside>
                   <section className="builder-workspace-main">
                 <div className="builder-tabs" role="tablist" aria-label="Form configuration">
                   <button type="button" role="tab" aria-selected={builderTab === "steps"} className={builderTab === "steps" ? "active" : ""} onClick={() => changeBuilderTab("steps")}>Workflow steps <span>{draft.workflowSteps.length}</span></button>
@@ -1166,7 +1174,7 @@ export function FormBuilder() {
                       <summary>
                         <span className="builder-item-number">{index + 2}</span>
                         <span className="builder-item-title"><strong>{step.name || `Step ${index + 1}`}</strong><small><span className="builder-badge">Step {index + 1}</span><span>{stepRoles.map(previewRoleLabel).join(", ")}</span><span className="builder-badge">{step.approvalMode === "parallel" ? `Parallel · ${step.approvalRule === "any" ? "any" : "all"}` : "Sequential"}</span>{Boolean(step.condition?.groups?.length) && <span className="builder-badge conditional">Conditional</span>}</small></span>
-                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditingStepIndex(index); }}>Edit</button></span>
+                        <span className="builder-item-actions"><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDuplicateTarget({ kind: "step", index }); setDuplicateCount(1); }}>Duplicate</button><button type="button" className="secondary compact" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openStepEditor(index); }}>Edit</button></span>
                       </summary>
                       <div className="builder-item-details"><p>{step.instructions || "No instructions provided."}</p><p><strong>Completed by:</strong> {stepRoles.map(previewRoleLabel).join(", ")}</p></div>
                     </details>;
@@ -1230,7 +1238,7 @@ export function FormBuilder() {
                       <StepConditionEditor condition={step.condition || { logic: "and", groups: [] }} availableFields={draft.fields.filter((field)=>!field.stepId||draft.workflowSteps.findIndex((candidate)=>candidate.id===field.stepId)<index)} onChange={(condition) => patchStep(index, { condition })}/>
                       <section className="step-field-editor">
                         <header><div><h3>Fields completed in this step <span className="step-field-count">{draft.fields.filter((field) => field.stepId === step.id).length}</span></h3><p>Only fields assigned to <strong>{step.name || `Step ${index + 1}`}</strong> appear here. They also remain available in the Field List tab.</p></div><button type="button" className="primary compact" onClick={() => addField(step.id, true)}><IconPlus size={15}/>Add field</button></header>
-                        {draft.fields.map((field, fieldIndex) => field.stepId !== step.id ? null : <details key={field.id} open={expandedFieldIndex === fieldIndex} onToggle={(event) => setExpandedFieldIndex(event.currentTarget.open ? fieldIndex : null)}><summary><strong>{field.label || `Untitled field ${fieldIndex + 1}`}</strong><span>{field.type}</span></summary><InlineFieldEditor field={field} index={fieldIndex} fields={draft.fields} workflowSteps={draft.workflowSteps} onPatch={(patch) => patchField(fieldIndex, patch)} onValidationPatch={(patch) => patchFieldValidation(fieldIndex, patch)}/></details>)}
+                        {draft.fields.map((field, fieldIndex) => field.stepId !== step.id ? null : <details key={field.id} open={expandedFieldIndex === fieldIndex} onToggle={(event) => setExpandedFieldIndex(event.currentTarget.open ? fieldIndex : null)}><summary><strong>{field.label || `Untitled field ${fieldIndex + 1}`}</strong><span className="step-field-summary-meta"><span>{field.type}</span><span>{expandedFieldIndex === fieldIndex ? "Close editor" : "View and edit"}</span></span></summary><InlineFieldEditor field={field} index={fieldIndex} fields={draft.fields} workflowSteps={draft.workflowSteps} onPatch={(patch) => patchField(fieldIndex, patch)} onValidationPatch={(patch) => patchFieldValidation(fieldIndex, patch)}/></details>)}
                         {!draft.fields.some((field) => field.stepId === step.id) && <div className="builder-empty-list"><strong>No step fields yet</strong><span>Add a field here when this workflow step needs the assigned role to enter or complete information.</span></div>}
                       </section>
                     </article>

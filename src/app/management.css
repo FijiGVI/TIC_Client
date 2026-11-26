@@ -231,8 +231,8 @@
 .builder-modal-heading { display: flex; flex: none; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px 18px; border-bottom: 1px solid var(--line); }
 .builder-modal-heading h2,.builder-modal-heading p { margin-bottom: 0; }
 .builder-modal-heading button { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; background: #f1f4f7; color: var(--ink); }
-.workflow-modal-tabs { display: flex; flex: none; align-items: flex-end; gap: 8px; padding: 10px 24px 0; overflow-x: auto; border-bottom: 1px solid var(--line); background: #f5f7fa; scrollbar-width: thin; }
-.workflow-modal-tabs > div { display: flex; min-width: max-content; align-items: flex-end; gap: 4px; }
+.workflow-modal-tabs { display: flex; flex: none; flex-wrap: wrap; align-items: flex-end; gap: 4px 8px; padding: 10px 24px 0; overflow: visible; border-bottom: 1px solid var(--line); background: #f5f7fa; }
+.workflow-modal-tabs > div { display: flex; min-width: 0; flex: 1 1 auto; flex-wrap: wrap; align-items: flex-end; gap: 4px; }
 .workflow-modal-tabs button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; border: 1px solid #d6dee6; border-bottom: 0; border-radius: 10px 10px 0 0; background: #e9eef3; color: var(--muted); font-weight: 700; white-space: nowrap; }
 .workflow-modal-tabs button > span { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: rgb(255 255 255 / 75%); color: var(--blue); font-size: 10px; }
 .workflow-modal-tabs button.active { position: relative; z-index: 1; margin-bottom: -1px; padding-bottom: 10px; background: #fff; color: var(--ink); }
@@ -253,6 +253,16 @@
 .builder-confirm-modal .modal-actions { margin-top: 24px; }
 .builder-confirm-modal .confirm-delete { background: var(--danger); color: #fff; }
 .builder-confirm-modal .confirm-delete:hover { filter: brightness(.92); }
+.builder-alert-backdrop { z-index: 240; }
+.builder-alert-modal { display: grid; width: min(520px, calc(100vw - 32px)); max-width: none; grid-template-columns: auto minmax(0, 1fr); gap: 0 16px; padding: 28px; border: 1px solid #c9dceb; }
+.builder-alert-icon { display: grid; width: 48px; height: 48px; grid-row: 1 / 3; place-items: center; border-radius: 14px; background: #eaf2fb; color: var(--blue); }
+.builder-alert-copy { min-width: 0; }
+.builder-alert-copy .eyebrow,.builder-alert-copy h2,.builder-alert-copy > p:last-child { margin: 0; }
+.builder-alert-copy h2 { margin-top: 4px; font-size: 22px; line-height: 1.3; }
+.builder-alert-copy > p:last-child { margin-top: 9px; color: var(--muted); line-height: 1.6; }
+.builder-alert-modal .modal-actions { grid-column: 1 / -1; margin-top: 24px; }
+.builder-alert-modal.destructive { border-color: #f4c7c3; }
+.builder-alert-modal.destructive .builder-alert-icon { background: #fff0ee; color: var(--danger); }
 .builder-floating-actions { position: fixed; z-index: 90; left: calc(248px + max(24px, calc(env(safe-area-inset-left) + 14px))); bottom: max(24px, calc(env(safe-area-inset-bottom) + 14px)); display: grid; gap: 8px; animation: builder-action-in .16s ease-out; }
 .sidebar-collapsed .builder-floating-actions { left: calc(76px + max(24px, calc(env(safe-area-inset-left) + 14px))); }
 .builder-floating-actions button { display: inline-flex; min-height: 46px; align-items: center; justify-content: flex-start; gap: 8px; padding: 10px 16px; border: 1px solid #0d5c96; border-radius: 999px; background: var(--blue); color: #fff; box-shadow: 0 8px 28px rgb(16 42 67 / 24%); font-weight: 800; }

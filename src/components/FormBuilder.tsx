@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  IconAlertTriangle,
   IconDeviceFloppy,
   IconGripVertical,
   IconEye,
@@ -26,6 +27,14 @@ import { replaceUpload, validateImage } from "@/lib/uploads";
 import type { ConditionOperator, FieldCondition, FieldType, FormField, FormGroup, PaginationMeta, RequestForm, Role, RoleOption } from "@/lib/types";
 
 type Draft = Omit<RequestForm, "id"> | RequestForm;
+type BuilderDialog = {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+  onConfirm?: () => void | Promise<void>;
+};
 // File fields remain readable for backwards compatibility, but cannot be
 // created until the TIC API has a multipart upload contract and object-store integration.
 const fieldTypes: FieldType[] = [
@@ -353,8 +362,10 @@ export function FormBuilder() {
   const addFieldButtonRef = useRef<HTMLButtonElement>(null);
   const addStepButtonRef = useRef<HTMLButtonElement>(null);
   const [topBuilderActionVisible, setTopBuilderActionVisible] = useState(true);
+  const [builderDialog, setBuilderDialog] = useState<BuilderDialog | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(blank()));
   const isDirty = JSON.stringify(draft) !== savedSnapshot;
+  const showNotice = (title: string, message: string) => setBuilderDialog({ title, message, confirmLabel: "Got it" });
   const openStepEditor = (stepIndex: number) => {
     const step = draft.workflowSteps[stepIndex];
     if (!step) return;
@@ -364,14 +375,27 @@ export function FormBuilder() {
     setExpandedFieldIndex(firstAssignedFieldIndex >= 0 ? firstAssignedFieldIndex : null);
   };
   const selectDraft = (nextDraft: Draft, status = "") => {
-    if (isDirty && !window.confirm("You have unsaved form changes. Discard them and continue?")) return;
-    setDraft(nextDraft);
-    setSavedSnapshot(JSON.stringify(nextDraft));
-    setDraftStatus(status);
-    setPreview(false);
-    setBuilderTab("steps");
-    setEditingFieldIndex(null);
-    setEditingStepIndex(null);
+    const applySelection = () => {
+      setDraft(nextDraft);
+      setSavedSnapshot(JSON.stringify(nextDraft));
+      setDraftStatus(status);
+      setPreview(false);
+      setBuilderTab("steps");
+      setEditingFieldIndex(null);
+      setEditingStepIndex(null);
+    };
+    if (isDirty) {
+      setBuilderDialog({
+        title: "Discard unsaved changes?",
+        message: "Your changes to the current form have not been saved. Discard them and open the selected form?",
+        confirmLabel: "Discard changes",
+        cancelLabel: "Keep editing",
+        destructive: true,
+        onConfirm: applySelection,
+      });
+      return;
+    }
+    applySelection();
   };
   const load = useCallback(async () => {
     try {
@@ -477,12 +501,12 @@ export function FormBuilder() {
     const incompleteField = draft.fields.findIndex((field) => !field.label.trim());
     const incompleteStep = draft.workflowSteps.findIndex((step) => !step.name.trim() || !Number.isInteger(step.slaMinutes));
     if (builderTab === "fields" && incompleteField >= 0) {
-      window.alert("Finish the current field before moving to the workflow.");
+      showNotice("Complete the current field", "Enter the required field information before moving to the workflow.");
       setExpandedFieldIndex(incompleteField);
       return;
     }
     if (builderTab === "steps" && incompleteStep >= 0) {
-      window.alert("Finish the current workflow step, including its SLA, before opening the field list.");
+      showNotice("Complete the workflow step", "Enter a step name and valid SLA before opening the field list.");
       openStepEditor(incompleteStep);
       return;
     }
@@ -491,7 +515,7 @@ export function FormBuilder() {
   const addField = (stepId: string | null = null, keepWorkflowOpen = false) => {
     const incompleteField = draft.fields.findIndex((field) => !field.label.trim());
     if (incompleteField >= 0) {
-      window.alert("Finish the current field before adding another field.");
+      showNotice("Complete the current field", "Enter a field label before adding another field.");
       setBuilderTab("fields");
       setExpandedFieldIndex(incompleteField);
       setEditingFieldIndex(incompleteField);
@@ -529,7 +553,7 @@ export function FormBuilder() {
   const addStep = () => {
     const incompleteStep = draft.workflowSteps.findIndex((step) => !step.name.trim() || !Number.isInteger(step.slaMinutes));
     if (incompleteStep >= 0) {
-      window.alert("Finish the current workflow step, including its SLA, before adding another step.");
+      showNotice("Complete the workflow step", "Enter a step name and valid SLA before adding another workflow step.");
       setBuilderTab("steps");
       openStepEditor(incompleteStep);
       return;
@@ -561,11 +585,11 @@ export function FormBuilder() {
     if (editingFieldIndex === null) return;
     const field = draft.fields[editingFieldIndex];
     if (!field?.label.trim()) {
-      window.alert("Enter a field label before creating a workflow step.");
+      showNotice("Field label required", "Enter a field label before creating a workflow step.");
       return;
     }
     if (["select", "radio"].includes(field.type) && !field.options.length) {
-      window.alert("Add at least one option before creating a workflow step.");
+      showNotice("Field options required", "Add at least one option before creating a workflow step.");
       return;
     }
     setEditingFieldIndex(null);
@@ -737,19 +761,27 @@ export function FormBuilder() {
       setGroupSaving(false);
     }
   };
-  const deleteGroup = async (group: FormGroup) => {
-    if (!window.confirm(`Delete the group “${group.name}”?`)) return;
-    setGroupSaving(true);
-    setError("");
-    try {
-      await api.delete(`/form-groups/${group.id}`);
-      if (draft.groupId === group.id) setDraft({ ...draft, groupId: "", groupName: "" });
-      await load();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to delete form group");
-    } finally {
-      setGroupSaving(false);
-    }
+  const deleteGroup = (group: FormGroup) => {
+    setBuilderDialog({
+      title: `Delete “${group.name}”?`,
+      message: "This group will be permanently removed. This action cannot be undone.",
+      confirmLabel: "Delete group",
+      cancelLabel: "Keep group",
+      destructive: true,
+      onConfirm: async () => {
+        setGroupSaving(true);
+        setError("");
+        try {
+          await api.delete(`/form-groups/${group.id}`);
+          if (draft.groupId === group.id) setDraft({ ...draft, groupId: "", groupName: "" });
+          await load();
+        } catch (reason) {
+          setError(reason instanceof Error ? reason.message : "Unable to delete form group");
+        } finally {
+          setGroupSaving(false);
+        }
+      },
+    });
   };
   const keyboardSave = (event: KeyboardEvent<HTMLFormElement>) => {
     if (
@@ -1376,6 +1408,16 @@ export function FormBuilder() {
               </div>
             </article>)}
             {!groups.length && <div className="builder-empty-list">No groups yet. Add the first group above.</div>}
+          </div>
+        </section>
+      </div>}
+      {builderDialog && <div className="modal-backdrop builder-alert-backdrop" onMouseDown={() => setBuilderDialog(null)}>
+        <section className={`modal builder-alert-modal${builderDialog.destructive ? " destructive" : ""}`} role="alertdialog" aria-modal="true" aria-labelledby="builder-alert-title" aria-describedby="builder-alert-description" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="builder-alert-icon"><IconAlertTriangle size={24}/></div>
+          <div className="builder-alert-copy"><p className="eyebrow">{builderDialog.destructive ? "Please confirm" : "Action required"}</p><h2 id="builder-alert-title">{builderDialog.title}</h2><p id="builder-alert-description">{builderDialog.message}</p></div>
+          <div className="modal-actions">
+            {builderDialog.onConfirm && <button type="button" className="secondary" autoFocus onClick={() => setBuilderDialog(null)}>{builderDialog.cancelLabel || "Cancel"}</button>}
+            <button type="button" className={builderDialog.destructive ? "danger confirm-delete" : "primary"} autoFocus={!builderDialog.onConfirm} onClick={() => { const action = builderDialog.onConfirm; setBuilderDialog(null); void action?.(); }}>{builderDialog.confirmLabel || "Continue"}</button>
           </div>
         </section>
       </div>}

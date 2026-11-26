@@ -1229,9 +1229,9 @@ export function FormBuilder() {
                       </label>
                       <StepConditionEditor condition={step.condition || { logic: "and", groups: [] }} availableFields={draft.fields.filter((field)=>!field.stepId||draft.workflowSteps.findIndex((candidate)=>candidate.id===field.stepId)<index)} onChange={(condition) => patchStep(index, { condition })}/>
                       <section className="step-field-editor">
-                        <header><div><h3>Fields completed in this step</h3><p>Create and edit step fields here. They also remain available in the Field List tab.</p></div><button type="button" className="primary compact" onClick={() => addField(step.id, true)}><IconPlus size={15}/>Add field</button></header>
+                        <header><div><h3>Fields completed in this step <span className="step-field-count">{draft.fields.filter((field) => field.stepId === step.id).length}</span></h3><p>Only fields assigned to <strong>{step.name || `Step ${index + 1}`}</strong> appear here. They also remain available in the Field List tab.</p></div><button type="button" className="primary compact" onClick={() => addField(step.id, true)}><IconPlus size={15}/>Add field</button></header>
                         {draft.fields.map((field, fieldIndex) => field.stepId !== step.id ? null : <details key={field.id} open={expandedFieldIndex === fieldIndex} onToggle={(event) => setExpandedFieldIndex(event.currentTarget.open ? fieldIndex : null)}><summary><strong>{field.label || `Untitled field ${fieldIndex + 1}`}</strong><span>{field.type}</span></summary><InlineFieldEditor field={field} index={fieldIndex} fields={draft.fields} workflowSteps={draft.workflowSteps} onPatch={(patch) => patchField(fieldIndex, patch)} onValidationPatch={(patch) => patchFieldValidation(fieldIndex, patch)}/></details>)}
-                        {!draft.fields.some((field) => field.stepId === step.id) && <div className="builder-empty-list">No fields are assigned to this step.</div>}
+                        {!draft.fields.some((field) => field.stepId === step.id) && <div className="builder-empty-list"><strong>No step fields yet</strong><span>Add a field here when this workflow step needs the assigned role to enter or complete information.</span></div>}
                       </section>
                     </article>
                   ))}

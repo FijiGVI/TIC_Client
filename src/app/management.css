@@ -227,7 +227,7 @@
 .builder-item-details code { color: var(--ink); }
 .builder-empty-list { padding: 28px; border: 1px dashed #cbd5df; border-radius: 12px; color: var(--muted); text-align: center; }
 .builder-editor-backdrop { z-index: 180; }
-.modal.builder-config-modal { display: flex; width: min(980px, calc(100vw - 40px)); max-width: none; max-height: calc(100dvh - 40px); flex-direction: column; overflow: hidden; padding: 0; }
+.modal.builder-config-modal { display: flex; width: min(1100px, calc(100vw - 40px)); max-width: none; max-height: calc(100dvh - 40px); flex-direction: column; overflow: hidden; padding: 0; }
 .builder-modal-heading { display: flex; flex: none; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px 18px; border-bottom: 1px solid var(--line); }
 .builder-modal-heading h2,.builder-modal-heading p { margin-bottom: 0; }
 .builder-modal-heading button { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; background: #f1f4f7; color: var(--ink); }
@@ -316,6 +316,11 @@
 .step-field-editor > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .step-field-editor h3,.step-field-editor p { margin: 0; }
 .step-field-editor p { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.step-field-editor > header .primary { display: inline-flex; width: auto; min-width: max-content; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.step-field-count { display: inline-grid; min-width: 24px; height: 24px; place-items: center; margin-left: 5px; padding-inline: 7px; border-radius: 999px; background: #eaf2fb; color: var(--blue); font-size: 11px; vertical-align: middle; }
+.step-field-editor .builder-empty-list { display: grid; gap: 5px; }
+.step-field-editor .builder-empty-list strong { color: var(--ink); }
+.step-field-editor .builder-empty-list span { font-size: 12px; line-height: 1.5; }
 .step-field-editor details { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .step-field-editor summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; cursor: pointer; }
 .step-field-editor summary span { color: var(--muted); font-size: 11px; text-transform: capitalize; }
@@ -597,6 +602,14 @@
   grid-column: 2 / 4;
   width: 100%;
 }
+.workflow-config-row > label {
+  grid-column: 2 / 4;
+  width: 100%;
+  min-width: 0;
+}
+.workflow-config-row > label input,
+.workflow-config-row > label select { width: 100%; min-width: 0; }
+.workflow-config-row > label small { max-width: 72ch; color: var(--muted); line-height: 1.45; }
 .workflow-config-row > button {
   grid-column: 3;
   grid-row: 1;

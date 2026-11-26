@@ -111,7 +111,7 @@ export function RequestList({ managed = false, allowCreate = false }: { managed?
   };
   const previewPdf = async (id: string, name: string) => {
     try {
-      const result = await api.get<{ data: { downloadUrl: string } }>(`/uploads/${id}/download`);
+      const result = await api.get<{ data: { downloadUrl: string } }>(`/uploads/${id}/download?disposition=inline`);
       setPdfPreview({ name, url: result.data.downloadUrl });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to preview PDF');
